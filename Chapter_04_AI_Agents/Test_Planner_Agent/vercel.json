@@ -1,10 +1,11 @@
 {
+  "name": "blast-test-planner",
   "buildCommand": "cd frontend && npm install && npm run build",
   "outputDirectory": "frontend/dist",
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "/api/index.py"
+      "destination": "/api/index.js"
     },
     {
       "source": "/(.*)",
