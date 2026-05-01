@@ -29,6 +29,8 @@
   - [Agent 02 — QA AI Agent (Local Ollama)](#agent-02--qa-ai-agent-local-ollama)
   - [Agent 03 — Jira AI Agent (Bug Creator)](#agent-03--jira-ai-agent-bug-creator)
   - [Agent 04 — Jira AI Agent (PRD → Test Plan)](#agent-04--jira-ai-agent-prd--test-plan)
+  - [Agent 05 — Jira AI Agent (PRD → Test Cases with Subtasks)](#agent-05--jira-ai-agent-prd--test-cases-with-subtasks)
+  - [Agent 06 — Jira AI Agent (Export Test Cases to Excel)](#agent-06--jira-ai-agent-export-test-cases-to-excel)
 - [How to Import These Agents](#-how-to-import-these-agents)
 - [Architecture Overview](#-architecture-overview)
 - [Author & Course Information](#-author--course-information)
@@ -212,7 +214,7 @@ The easiest way to get started — no installation required!
 
 ## 🤖 AI Agents in This Chapter
 
-This chapter contains **four progressively complex AI agents** built in n8n, designed for QA and Testing workflows.
+This chapter contains **six progressively complex AI agents** built in n8n, designed for QA and Testing workflows.
 
 ---
 
@@ -386,6 +388,68 @@ Chat Trigger → AI Agent ← Groq LLM (Cloud)
 
 ---
 
+### Agent 05 — Jira AI Agent (PRD → Test Cases with Subtasks)
+
+📄 **File:** `AI_2X_05_TestCase_Gen_with_PRD_JIRA.json`
+
+| Property | Details |
+| :--- | :--- |
+| **Purpose** | Reads a Jira PRD, generates test cases, and creates them as Subtasks under a main Jira ticket |
+| **LLM Provider** | Groq Cloud (`openai/gpt-oss-120b`) |
+| **Tool** | Jira Software — Read Issue, Create Issue |
+| **Memory** | Buffer Window Memory |
+| **Trigger** | Chat message / Webhook |
+
+#### What It Does
+
+This agent builds on Agent 04 by directly taking action in Jira:
+
+- 📥 **Reads** a Jira ticket (PRD/Story)
+- 🧠 **Analyzes** requirements and designs comprehensive Test Cases
+- 🛠️ **Creates** a parent Test Plan ticket or operates within an Epic
+- 🔄 **Generates and links** each test case as a Subtask automatically in Jira
+
+#### Workflow Architecture
+
+```text
+Chat Trigger → AI Agent ← Groq LLM (Cloud)
+                  ↑  ↑
+      Simple Memory  Jira Tool (Read PRD, Create Subtasks)
+```
+
+---
+
+### Agent 06 — Jira AI Agent (Export Test Cases to Excel)
+
+📄 **File:** `AI_2X_06_TestCase_Gen_with_PRD_JIRA_Export_Excel.json`
+
+| Property | Details |
+| :--- | :--- |
+| **Purpose** | Generates test cases from a PRD/Jira ticket and exports them directly to an Excel file |
+| **LLM Provider** | Groq Cloud (`openai/gpt-oss-120b`) |
+| **Tool** | Jira Software, Spreadsheet/Excel Nodes |
+| **Memory** | Buffer Window Memory |
+| **Trigger** | Chat message / Webhook |
+
+#### What It Does
+
+A powerful utility agent for teams that need test documentation in traditional spreadsheet formats:
+
+- 📥 **Fetches** Jira ticket details or PRD
+- 🧠 **Generates** detailed test cases with fields (ID, Summary, Pre-conditions, Steps, Expected Result)
+- 📊 **Converts** the structured LLM output into standardized rows and columns
+- 💾 **Exports** the result as a downloadable `.xlsx` or `.csv` file
+
+#### Workflow Architecture
+
+```text
+Chat Trigger → AI Agent ← Groq LLM (Cloud)
+                  ↑  ↑
+      Simple Memory  Jira Tool (Read Ticket) -> Spreadsheet Generation -> Excel Download
+```
+
+---
+
 ## 📥 How to Import These Agents
 
 1. Open your n8n instance (`http://localhost:5678` or your cloud URL)
@@ -393,9 +457,9 @@ Chat Trigger → AI Agent ← Groq LLM (Cloud)
 3. Select **"Import from File"**
 4. Choose the desired `.json` file from this directory
 5. Configure the required **credentials**:
-   - **Groq API Key** — for Agents 01, 03, and 04
+   - **Groq API Key** — for Agents 01, 03, 04, 05, and 06
    - **Ollama Connection** — for Agent 02 (ensure Ollama is running locally)
-   - **Jira Cloud API** — for Agents 03 and 04 (requires Jira email + API token)
+   - **Jira Cloud API** — for Agents 03, 04, 05, and 06 (requires Jira email + API token)
 6. Click **"Save"** and then **"Execute"** or **"Activate"** the workflow
 
 ---
@@ -409,6 +473,8 @@ graph TD
         A02["🔵 Agent 02<br/>QA Expert (Ollama Local)"]
         A03["🟠 Agent 03<br/>Jira Bug Creator"]
         A04["🔴 Agent 04<br/>Jira PRD → Test Plan"]
+        A05["🟣 Agent 05<br/>Jira PRD → Test Cases (Subtasks)"]
+        A06["🟤 Agent 06<br/>Jira PRD → Test Cases (Excel)"]
     end
 
     subgraph "LLM Providers"
@@ -431,21 +497,31 @@ graph TD
     A03 --> JIRA
     A04 --> GROQ
     A04 --> JIRA
+    A05 --> GROQ
+    A05 --> JIRA
+    A06 --> GROQ
+    A06 --> JIRA
 
     CHAT --> A01
     CHAT --> A02
     CHAT --> A03
     CHAT --> A04
+    CHAT --> A05
+    CHAT --> A06
 
     MEM --> A01
     MEM --> A02
     MEM --> A03
     MEM --> A04
+    MEM --> A05
+    MEM --> A06
 
     style A01 fill:#c8e6c9,stroke:#2e7d32
     style A02 fill:#bbdefb,stroke:#1565c0
     style A03 fill:#ffe0b2,stroke:#e65100
     style A04 fill:#ffcdd2,stroke:#c62828
+    style A05 fill:#e1bee7,stroke:#6a1b9a
+    style A06 fill:#d7ccc8,stroke:#4e342e
 ```
 
 ---
@@ -458,6 +534,8 @@ graph TD
 | `AI_2X_02_Local_Ollama_QA_AI_AGENT.json` | QA Expert AI Agent powered by local Ollama (gemma3:1b) |
 | `AI_2X_03_JIRA_AI_AGENT.json` | AI Agent that creates bug tickets in Jira via chat |
 | `AI_2X_04_JIRA_AI_AGENT_READ_PRD_Test_Plan.json` | AI Agent that reads Jira tickets and generates test plans |
+| `AI_2X_05_TestCase_Gen_with_PRD_JIRA.json` | AI Agent that creates test cases as Subtasks in Jira |
+| `AI_2X_06_TestCase_Gen_with_PRD_JIRA_Export_Excel.json` | AI Agent that generates and exports test cases to Excel |
 | `README.md` | This documentation file |
 
 ---

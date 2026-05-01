@@ -1,0 +1,297 @@
+{
+  "name": "Jira Bug to Test Plan Document Generator",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "3e3af8c1-3760-4191-a9b8-13f03ce3d326",
+      "name": "Start Test Plan Generation",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        256,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.jiraTicketUrl || 'https://bugzz.atlassian.net/browse/VWO-48' }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are the main orchestrator for test plan generation. Your role is to coordinate the workflow: 1) Use the JiraFetcherTool to retrieve the Jira ticket details, 2) Pass the ticket data to the Test Plan Analyst to analyze scope and identify key testing areas, 3) Pass the analysis to the Test Plan Writer to generate a comprehensive test plan document with severity, priority, and bug importance assessment. Ensure all agents receive the necessary context to produce a professional test plan."
+        }
+      },
+      "id": "f706a8aa-24b8-4c32-9baf-086b94e71cf6",
+      "name": "Main Orchestrator Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        752,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "id",
+          "value": "gpt-4o"
+        },
+        "builtInTools": {},
+        "options": {
+          "temperature": 0.3
+        }
+      },
+      "id": "4c0bbf09-87a8-4d84-813f-d5ecef902062",
+      "name": "Orchestrator Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        448,
+        512
+      ]
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n\t\"type\": \"object\",\n\t\"properties\": {\n\t\t\"testPlanTitle\": {\n\t\t\t\"type\": \"string\"\n\t\t},\n\t\t\"bugSeverity\": {\n\t\t\t\"type\": \"string\"\n\t\t},\n\t\t\"bugPriority\": {\n\t\t\t\"type\": \"string\"\n\t\t},\n\t\t\"bugImportance\": {\n\t\t\t\"type\": \"string\"\n\t\t},\n\t\t\"scopeAnalysis\": {\n\t\t\t\"type\": \"string\"\n\t\t},\n\t\t\"testCases\": {\n\t\t\t\"type\": \"array\",\n\t\t\t\"items\": {\n\t\t\t\t\"type\": \"object\",\n\t\t\t\t\"properties\": {\n\t\t\t\t\t\"testCaseId\": {\n\t\t\t\t\t\t\"type\": \"string\"\n\t\t\t\t\t},\n\t\t\t\t\t\"description\": {\n\t\t\t\t\t\t\"type\": \"string\"\n\t\t\t\t\t},\n\t\t\t\t\t\"steps\": {\n\t\t\t\t\t\t\"type\": \"string\"\n\t\t\t\t\t},\n\t\t\t\t\t\"expectedResult\": {\n\t\t\t\t\t\t\"type\": \"string\"\n\t\t\t\t\t},\n\t\t\t\t\t\"priority\": {\n\t\t\t\t\t\t\"type\": \"string\"\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t}\n\t\t},\n\t\t\"recommendations\": {\n\t\t\t\"type\": \"string\"\n\t\t}\n\t}\n}"
+      },
+      "id": "8336edaa-95c7-472a-9ba9-76510b1c7a4a",
+      "name": "Test Plan Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        1312,
+        528
+      ]
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Fetches Jira ticket details including bug description, severity, priority, status, and all relevant fields from the Jira REST API. Provide the Jira ticket key (e.g., VWO-48) to retrieve complete ticket information.",
+        "operation": "get",
+        "issueKey": "={{ $fromAI('ticketKey', 'The Jira ticket key to fetch (e.g., VWO-48)', 'string') }}",
+        "additionalFields": {}
+      },
+      "id": "5c9d4fef-b247-4ccf-83e8-f163991e57e7",
+      "name": "JiraFetcherTool",
+      "type": "n8n-nodes-base.jiraTool",
+      "typeVersion": 1,
+      "position": [
+        608,
+        528
+      ],
+      "credentials": {
+        "jiraSoftwareCloudApi": {
+          "id": "QCfsmINzFuxJjXlt",
+          "name": "Jira SW Cloud account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Analyzes Jira bug tickets to identify testing scope, affected components, risk areas, and key testing requirements. Provides structured analysis including severity assessment, priority evaluation, and recommended test coverage areas.",
+        "text": "={{ $fromAI('bugTicketData', 'The complete Jira bug ticket data to analyze', 'string') }}",
+        "options": {
+          "systemMessage": "You are a Test Plan Analyst specializing in software quality assurance. Your role is to analyze bug tickets and identify: 1) The scope of testing required, 2) Affected system components and features, 3) Risk assessment based on severity and priority, 4) Key testing areas and scenarios that must be covered, 5) Dependencies and integration points to test. Provide a comprehensive analysis that will guide the test plan writer."
+        }
+      },
+      "id": "28a779b6-1ad8-4838-85f6-c79ed6bc9752",
+      "name": "Test Plan Analyst Agent",
+      "type": "@n8n/n8n-nodes-langchain.agentTool",
+      "typeVersion": 3,
+      "position": [
+        736,
+        528
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "id",
+          "value": "gpt-4o"
+        },
+        "builtInTools": {},
+        "options": {
+          "temperature": 0.2
+        }
+      },
+      "id": "25f99d27-9aa2-4480-81e2-0ce4d9b8b4ff",
+      "name": "Analyst Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        816,
+        736
+      ]
+    },
+    {
+      "parameters": {
+        "toolDescription": "Generates comprehensive professional test plan documents based on bug analysis. Creates detailed test cases, defines severity and priority levels, assesses bug importance, and produces structured test plans following industry best practices and provided templates.",
+        "text": "={{ $fromAI('analysisData', 'The test plan analysis from the analyst agent', 'string') }}",
+        "options": {
+          "systemMessage": "You are a Test Plan Writer with expertise in creating professional QA documentation. Based on the bug ticket analysis provided, generate a comprehensive test plan that includes: 1) Test Plan Title and Overview, 2) Bug Severity and Priority classification with justification, 3) Bug Importance assessment (Critical/High/Medium/Low) with business impact analysis, 4) Detailed test cases with: test case ID, description, step-by-step execution steps, expected results, and priority level, 5) Testing scope and objectives, 6) Risk analysis and mitigation strategies, 7) Recommendations for test execution. Format the output professionally and ensure all test cases are actionable and complete."
+        }
+      },
+      "id": "11f30e38-02e5-4170-8e64-01309fed8734",
+      "name": "Test Plan Writer Agent",
+      "type": "@n8n/n8n-nodes-langchain.agentTool",
+      "typeVersion": 3,
+      "position": [
+        1024,
+        528
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "id",
+          "value": "gpt-4o"
+        },
+        "builtInTools": {},
+        "options": {
+          "temperature": 0.3
+        }
+      },
+      "id": "3b9dfd96-2492-488c-9294-de1996fcdabf",
+      "name": "Writer Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        1104,
+        736
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "toJson",
+        "options": {
+          "fileName": "=Test_Plan_{{ $json.output.testPlanTitle || 'Document' }}.docx"
+        }
+      },
+      "id": "d85c8204-3c22-47bf-b525-dc83d71a6720",
+      "name": "Generate Test Plan Document",
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        1520,
+        304
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Start Test Plan Generation": {
+      "main": [
+        [
+          {
+            "node": "Main Orchestrator Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Orchestrator Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Main Orchestrator Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Test Plan Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Main Orchestrator Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "JiraFetcherTool": {
+      "ai_tool": [
+        [
+          {
+            "node": "Main Orchestrator Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Test Plan Analyst Agent": {
+      "ai_tool": [
+        [
+          {
+            "node": "Main Orchestrator Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyst Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Test Plan Analyst Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Test Plan Writer Agent": {
+      "ai_tool": [
+        [
+          {
+            "node": "Main Orchestrator Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Writer Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Test Plan Writer Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Main Orchestrator Agent": {
+      "main": [
+        [
+          {
+            "node": "Generate Test Plan Document",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "af0e5611-08c5-427f-a514-b22c1b576f20",
+  "meta": {
+    "instanceId": "dc2f858738a69bc611d33bc3fb9b5ea59609d693c9968efe048db5f39d555b7b"
+  },
+  "id": "NG8GEQPkFachH0a8",
+  "tags": []
+}
