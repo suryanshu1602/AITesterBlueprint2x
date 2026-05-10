@@ -1,0 +1,14 @@
+flask>=3.0
+python-dotenv>=1.0
+requests>=2.30
+pandas>=2.2
+openpyxl>=3.1
+qdrant-client>=1.10
+# FlagEmbedding 1.4 requires transformers>=5 (uses dtype= kwarg) but transformers 5
+# removed XLMRobertaTokenizer.prepare_for_model that FlagReranker still calls.
+# 1.3.x is the last branch that works cleanly with transformers 4.x.
+FlagEmbedding>=1.3,<1.4
+transformers>=4.40,<5
+tokenizers<0.22
+torch>=2.2
+numpy>=1.26

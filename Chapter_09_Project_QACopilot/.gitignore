@@ -1,0 +1,23 @@
+.env
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.DS_Store
+
+# Vector store
+qdrant_data/
+
+# Frontend
+node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Cloned source repos (large; user clones locally)
+data/selenium_repo/
+data/playwright_repo/
+
+# Ingest reports
+data/_skip_report.json
+data/_ingest_report.json
