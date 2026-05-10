@@ -164,4 +164,41 @@ python3 rag_chunking.py
 
 ---
 
+## 📖 Chapter 9: QA Copilot — Multi-Source RAG
+
+**Directory:** `Chapter_09_Project_QACopilot/`
+
+The capstone project of the RAG track. We build a **production-shaped QA Copilot** that retrieves and answers questions across **five heterogeneous QA sources at once** — a Selenium Java framework, a Playwright TypeScript framework, the VWO test case corpus, product PDFs (PRDs), and JIRA bug exports. Each source is its own Qdrant collection; an LLM intent **router** picks 1–2 collections per query; **hybrid retrieval** (BGE-M3 dense + sparse) is fused with RRF; a cross-encoder **reranks** top candidates; Groq `gpt-oss-120b` answers with inline citations. A built-in **RAG Explorer** debugger exposes every pipeline stage.
+
+### Chapter 9 Learning Path
+
+```mermaid
+flowchart LR
+    Q1(Multi-Source RAG) --> Q2(AST + Row + PDF + JIRA Chunking)
+    Q2 --> Q3(BGE-M3 Hybrid Embed)
+    Q3 --> Q4(Intent Router + RRF Fusion)
+    Q4 --> Q5(Cross-Encoder Rerank)
+    Q5 --> Q6{RAG Explorer · Cited Answers}
+
+    style Q1 fill:#cffafe,stroke:#06b6d4
+    style Q2 fill:#cffafe,stroke:#06b6d4
+    style Q3 fill:#cffafe,stroke:#06b6d4
+    style Q4 fill:#cffafe,stroke:#06b6d4
+    style Q5 fill:#cffafe,stroke:#06b6d4
+    style Q6 fill:#ede7f6,stroke:#4527a0,stroke-width:2px
+```
+
+### Chapter 9 Curriculum & Project
+
+| Type | Folder / File | Description |
+| :---: | :--- | :--- |
+| **🚀 Project** | `Chapter_09_Project_QACopilot/` | **End-to-end QA Copilot** — FastAPI + React + Vite + Tailwind + Qdrant + BGE-M3 + Groq. Five collections, intent routing, hybrid retrieval, rerank, and a RAG Explorer debugger. |
+| **📄 KT Doc** | `Chapter_09_Project_QACopilot/KT/index.html` | Standalone HTML knowledge-transfer page: full architecture diagram, component breakdown, chunk schemas, and design trade-offs. |
+
+![QA Copilot — Chat UI with cited Selenium source](Chapter_09_Project_QACopilot/docs/screenshot-chat.png)
+
+See `Chapter_09_Project_QACopilot/README.md` for run instructions and `CLAUDE.md` for the architecture deep-dive.
+
+---
+
 *Continue following this repository for future chapters exploring deeper AI integrations!*
