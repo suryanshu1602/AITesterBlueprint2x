@@ -1,1 +1,14 @@
 1x/
+.DS_Store
+**/.DS_Store
+.vscode/
+.playwright-mcp/
+
+# python
+**/venv/
+**/__pycache__/
+*.pyc
+
+# node
+**/node_modules/
+.mcp.json

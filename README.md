@@ -201,4 +201,103 @@ See `Chapter_09_Project_QACopilot/README.md` for run instructions and `CLAUDE.md
 
 ---
 
+## 📖 Chapter 10: MCP Basics — Playwright MCP
+
+**Directory:** `Chapter_10_MCP_Basics/`
+
+This chapter introduces the **Model Context Protocol (MCP)** — an open standard that lets LLMs drive external tools through a uniform interface. We use **Playwright MCP** (`microsoft/playwright-mcp`) to let an AI agent control a real browser: navigate, snapshot accessibility tree, type, click, screenshot, capture errors. The chapter records a hands-on walkthrough against `app.vwo.com` (negative-login scenario) and emits an idiomatic Playwright spec from the captured trace.
+
+### Chapter 10 Learning Path
+
+```mermaid
+flowchart LR
+    M1(What is MCP?) --> M2(Install Playwright MCP)
+    M2 --> M3(Agent-driven Browser Actions)
+    M3 --> M4(Capture A11y Snapshot & Errors)
+    M4 --> M5{Auto-generate Playwright spec}
+
+    style M1 fill:#fef3c7,stroke:#92400e
+    style M2 fill:#fef3c7,stroke:#92400e
+    style M3 fill:#fef3c7,stroke:#92400e
+    style M4 fill:#fef3c7,stroke:#92400e
+    style M5 fill:#ede7f6,stroke:#4527a0,stroke-width:2px
+```
+
+### Chapter 10 Curriculum
+
+| Type | Folder / File | Description |
+| :---: | :--- | :--- |
+| **📚 Setup** | `Playwright_MCP/Install_MCP.md` | Reference to `github.com/microsoft/playwright-mcp` and install steps for wiring the MCP server into Claude Code / Cursor / VS Code. |
+| **🧪 Demo** | `Playwright_MCP/MCP_Usage.md` | Worked example: negative-login on `app.vwo.com` driven entirely through Playwright MCP — `browser_navigate`, `browser_snapshot`, `browser_type`, `browser_click`, `browser_take_screenshot` — and the resulting Playwright test (`tests/vwo-login.spec.ts`) that captures the `Your email, password, IP address or location did not match` error. |
+
+### Playwright MCP Tools (23 total)
+
+`browser_navigate`, `browser_navigate_back`, `browser_snapshot`, `browser_click`, `browser_type`, `browser_fill_form`, `browser_press_key`, `browser_hover`, `browser_drag`, `browser_drop`, `browser_select_option`, `browser_file_upload`, `browser_handle_dialog`, `browser_wait_for`, `browser_evaluate`, `browser_run_code_unsafe`, `browser_take_screenshot`, `browser_console_messages`, `browser_network_request`, `browser_network_requests`, `browser_tabs`, `browser_resize`, `browser_close`.
+
+### Quick Start
+
+```bash
+# Install MCP server (one-time)
+npx @playwright/mcp@latest --help
+
+# Register in your MCP client (Claude Code / Cursor / VS Code) — see Install_MCP.md
+# Then drive the browser from chat:
+#   "open app.vwo.com, enter wrong credentials, capture the error"
+```
+
+---
+
+## 📖 Bonus: Chapter 6 & 7 — AI Agents
+
+| Chapter | Directory | What's inside |
+| :---: | :--- | :--- |
+| **Ch 6** | `Chapter_06_AI_Agents_LangFlow/` | Exported LangFlow JSON flows — *QA Buddy* agent and a *Bug Report Classifier & Prioritizer* agent. |
+| **Ch 7** | `Chapter_07_AI_Agent_VIBE_Coding/` | Vibe-coded **JIRA AI Agent** (frontend + backend + templates) plus a *Test Case Generator from User Stories* flow. |
+
+---
+
+## 📖 Bonus: Postman MCP — AI-Generated API Collections
+
+This repo also demonstrates **Postman MCP** — using the Postman Model Context Protocol server to let an AI agent build production-grade Postman collections (requests, variables, scripts, assertions) directly inside a Postman workspace, with zero manual clicking.
+
+### Workspace
+
+All collections live in the **`ATB2X Demo`** Postman workspace (`b4d9ec74-5bb8-4f5b-89bd-d1c13caea874`).
+
+### Collections Generated via Postman MCP
+
+| # | Collection | Endpoints | Tests / Request | Highlights |
+| :---: | :--- | :---: | :---: | :--- |
+| 1 | **Zippopotam India - 560066** | 1 | 4 | Smoke check against `api.zippopotam.us/in/560066` — country, post-code, and places-array assertions. |
+| 2 | **Restful Booker - Full API** | 10 | 11–15 | Full CRUD lifecycle against `restful-booker.herokuapp.com` — Ping, Auth, GetBookingIds (all + filter), GetBooking, CreateBooking, UpdateBooking (PUT), PartialUpdateBooking (PATCH), DeleteBooking, plus a 404 verification step. Token + bookingId chained through collection variables. |
+
+### Restful Booker — Run Order
+
+```
+01 Ping  →  02 Auth (saves token)  →  06 CreateBooking (saves bookingId)
+       →  03 / 04 / 05 (reads)
+       →  07 PUT  →  08 PATCH  →  09 DELETE  →  10 Verify 404
+```
+
+### Assertion Patterns Used
+
+- HTTP status code + status text
+- Response-time SLA (`< 3000ms`, `< 5000ms` for list endpoints)
+- `Content-Type` header presence and value
+- JSON schema + field type checks (`string`, `number`, `boolean`, array shape)
+- Request ↔ response value parity (e.g., `firstname` echoed back)
+- Regex date format (`YYYY-MM-DD`) and date logic (`checkout >= checkin`)
+- Duplicate-ID detection across list responses
+- Collection-variable persistence (`token`, `bookingId`) across requests
+- Negative path (404 after delete)
+
+### Why Postman MCP
+
+- **No clicking** — the LLM emits a v2.1.0 collection JSON; the MCP server materialises it in your workspace.
+- **Repeatable** — same prompt regenerates identical collections; great for teaching and demos.
+- **Test-rich by default** — every request ships with 10+ `pm.test` assertions instead of an empty stub.
+- **Chained state** — variables (`token`, `bookingId`) flow between requests, so the collection is runnable end-to-end via Collection Runner / Newman.
+
+---
+
 *Continue following this repository for future chapters exploring deeper AI integrations!*
