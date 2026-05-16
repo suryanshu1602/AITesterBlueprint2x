@@ -256,4 +256,48 @@ npx @playwright/mcp@latest --help
 
 ---
 
+## 📖 Bonus: Postman MCP — AI-Generated API Collections
+
+This repo also demonstrates **Postman MCP** — using the Postman Model Context Protocol server to let an AI agent build production-grade Postman collections (requests, variables, scripts, assertions) directly inside a Postman workspace, with zero manual clicking.
+
+### Workspace
+
+All collections live in the **`ATB2X Demo`** Postman workspace (`b4d9ec74-5bb8-4f5b-89bd-d1c13caea874`).
+
+### Collections Generated via Postman MCP
+
+| # | Collection | Endpoints | Tests / Request | Highlights |
+| :---: | :--- | :---: | :---: | :--- |
+| 1 | **Zippopotam India - 560066** | 1 | 4 | Smoke check against `api.zippopotam.us/in/560066` — country, post-code, and places-array assertions. |
+| 2 | **Restful Booker - Full API** | 10 | 11–15 | Full CRUD lifecycle against `restful-booker.herokuapp.com` — Ping, Auth, GetBookingIds (all + filter), GetBooking, CreateBooking, UpdateBooking (PUT), PartialUpdateBooking (PATCH), DeleteBooking, plus a 404 verification step. Token + bookingId chained through collection variables. |
+
+### Restful Booker — Run Order
+
+```
+01 Ping  →  02 Auth (saves token)  →  06 CreateBooking (saves bookingId)
+       →  03 / 04 / 05 (reads)
+       →  07 PUT  →  08 PATCH  →  09 DELETE  →  10 Verify 404
+```
+
+### Assertion Patterns Used
+
+- HTTP status code + status text
+- Response-time SLA (`< 3000ms`, `< 5000ms` for list endpoints)
+- `Content-Type` header presence and value
+- JSON schema + field type checks (`string`, `number`, `boolean`, array shape)
+- Request ↔ response value parity (e.g., `firstname` echoed back)
+- Regex date format (`YYYY-MM-DD`) and date logic (`checkout >= checkin`)
+- Duplicate-ID detection across list responses
+- Collection-variable persistence (`token`, `bookingId`) across requests
+- Negative path (404 after delete)
+
+### Why Postman MCP
+
+- **No clicking** — the LLM emits a v2.1.0 collection JSON; the MCP server materialises it in your workspace.
+- **Repeatable** — same prompt regenerates identical collections; great for teaching and demos.
+- **Test-rich by default** — every request ships with 10+ `pm.test` assertions instead of an empty stub.
+- **Chained state** — variables (`token`, `bookingId`) flow between requests, so the collection is runnable end-to-end via Collection Runner / Newman.
+
+---
+
 *Continue following this repository for future chapters exploring deeper AI integrations!*
