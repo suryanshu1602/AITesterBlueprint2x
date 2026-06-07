@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>QA Pipeline — Run by Jira ID</title>
+  <style>
+    body { font-family: 'Segoe UI', Tahoma, sans-serif; margin: 0; background: #f8fafc; color: #0f172a; }
+    .wrap { max-width: 720px; margin: 40px auto; padding: 24px; background: white; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.08); }
+    h1 { margin: 0 0 8px; color: #065f46; }
+    .sub { color: #64748b; margin-bottom: 24px; }
+    label { display: block; font-weight: 600; margin-bottom: 6px; }
+    textarea { width: 100%; min-height: 140px; padding: 12px; border: 2px solid #e2e8f0; border-radius: 10px; font-family: 'Consolas', monospace; font-size: 14px; }
+    textarea:focus { outline: none; border-color: #10b981; }
+    .hint { color: #64748b; font-size: 13px; margin-top: 6px; }
+    button { margin-top: 16px; background: linear-gradient(135deg, #10b981, #059669); color: white; border: 0; padding: 14px 28px; font-size: 16px; font-weight: 600; border-radius: 10px; cursor: pointer; }
+    button:hover { transform: translateY(-1px); }
+    .runs { margin-top: 30px; border-top: 1px solid #e2e8f0; padding-top: 18px; }
+    .runs h2 { font-size: 15px; color: #334155; margin: 0 0 10px; }
+    .pill { display: inline-block; padding: 4px 10px; background: #d1fae5; color: #065f46; border-radius: 20px; font-size: 12px; margin: 3px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>🤖 QA Pipeline</h1>
+    <p class="sub">Enter one or more Jira ticket IDs. Each will be sent through the 4-agent CrewAI pipeline. Outputs land in <code>runs/&lt;TICKET&gt;/</code>.</p>
+
+    <form method="post" action="/run">
+      <label for="tickets">Jira Ticket IDs</label>
+      <textarea id="tickets" name="tickets" placeholder="VWO-48&#10;VWO-49&#10;VWO-50"></textarea>
+      <p class="hint">One per line — or comma/space separated. Duplicates are removed.</p>
+      <button type="submit">▶ Run Pipeline</button>
+    </form>
+
+    {% if runs %}
+    <div class="runs">
+      <h2>Previous runs</h2>
+      {% for r in runs %}<span class="pill">{{ r }}</span>{% endfor %}
+    </div>
+    {% endif %}
+  </div>
+</body>
+</html>

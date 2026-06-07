@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>QA Pipeline — Results</title>
+  <style>
+    body { font-family: 'Segoe UI', Tahoma, sans-serif; margin: 0; background: #f8fafc; color: #0f172a; }
+    .wrap { max-width: 1200px; margin: 32px auto; padding: 0 20px; }
+    h1 { color: #065f46; margin-bottom: 6px; }
+    .back { display: inline-block; margin-bottom: 20px; color: #2563eb; text-decoration: none; font-weight: 600; }
+    .card { background: white; border-radius: 14px; box-shadow: 0 6px 24px rgba(0,0,0,0.06); padding: 24px; margin-bottom: 28px; }
+    .head { display: flex; align-items: center; gap: 12px; border-bottom: 2px solid #f0fdf4; padding-bottom: 12px; margin-bottom: 18px; }
+    .head h2 { margin: 0; color: #065f46; }
+    .badge { padding: 4px 10px; border-radius: 16px; font-size: 12px; font-weight: 600; }
+    .ok { background: #d1fae5; color: #065f46; }
+    .fail { background: #fee2e2; color: #b91c1c; }
+    section { margin-bottom: 22px; }
+    section h3 { font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px; color: #475569; margin: 0 0 10px; }
+    pre { background: #0f172a; color: #e2e8f0; padding: 16px; border-radius: 10px; overflow-x: auto; font-size: 13px; line-height: 1.55; }
+    .tree { font-family: 'Consolas', monospace; font-size: 13px; }
+    .tree ul { list-style: none; padding-left: 20px; margin: 4px 0; border-left: 1px dashed #cbd5e1; }
+    .tree li { padding: 2px 0; }
+    .tree .dir { color: #b45309; font-weight: 600; }
+    .tree .file a { color: #2563eb; text-decoration: none; }
+    .tree .file a:hover { text-decoration: underline; }
+    .tree .size { color: #94a3b8; font-size: 11px; margin-left: 6px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { border: 1px solid #e2e8f0; padding: 8px 10px; text-align: left; vertical-align: top; }
+    th { background: #f0fdf4; color: #065f46; position: sticky; top: 0; }
+    td { white-space: pre-wrap; }
+    .scroll { max-height: 460px; overflow: auto; border: 1px solid #e2e8f0; border-radius: 10px; }
+    .md { background: #f8fafc; padding: 18px; border-radius: 10px; border: 1px solid #e2e8f0; max-height: 460px; overflow: auto; white-space: pre-wrap; font-family: 'Consolas', monospace; font-size: 13px; line-height: 1.55; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <a class="back" href="/">← New run</a>
+    <h1>📦 Pipeline Results</h1>
+    <p style="color:#64748b;">Processed: {{ tickets|join(', ') }}</p>
+
+    {% for r in results %}
+    <div class="card">
+      <div class="head">
+        <h2>{{ r.ticket }}</h2>
+        {% if r.ok %}
+          <span class="badge ok">success</span>
+        {% else %}
+          <span class="badge fail">failed</span>
+        {% endif %}
+      </div>
+
+      {% if not r.ok %}
+      <section>
+        <h3>Error</h3>
+        <pre>{{ r.error }}</pre>
+      </section>
+      {% endif %}
+
+      {% if r.tree %}
+      <section>
+        <h3>📁 Folder structure</h3>
+        <div class="tree">
+          {% macro render(nodes) %}
+          <ul>
+            {% for n in nodes %}
+              <li>
+                {% if n.is_dir %}
+                  <span class="dir">📁 {{ n.name }}/</span>
+                  {{ render(n.children) }}
+                {% else %}
+                  <span class="file">📄 <a href="/runs/{{ n.rel }}" target="_blank">{{ n.name }}</a><span class="size">({{ n.size }} B)</span></span>
+                {% endif %}
+              </li>
+            {% endfor %}
+          </ul>
+          {% endmacro %}
+          {{ render(r.tree) }}
+        </div>
+      </section>
+      {% endif %}
+
+      {% if r.test_cases_rows %}
+      <section>
+        <h3>🧪 test_cases.csv (Jira format)</h3>
+        <div class="scroll">
+          <table>
+            {% for row in r.test_cases_rows %}
+              {% if loop.first %}
+                <thead><tr>{% for c in row %}<th>{{ c }}</th>{% endfor %}</tr></thead>
+                <tbody>
+              {% else %}
+                <tr>{% for c in row %}<td>{{ c }}</td>{% endfor %}</tr>
+              {% endif %}
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+      {% endif %}
+
+      {% if r.test_plan_md %}
+      <section>
+        <h3>📋 test_plan.md</h3>
+        <div class="md">{{ r.test_plan_md }}</div>
+      </section>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</body>
+</html>

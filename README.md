@@ -525,4 +525,141 @@ venv/bin/python 03_Building_QABugTriageCrew.py
 
 ---
 
+## 📖 Chapter 14: CrewAI + Jira MCP — Auto QA Pipeline
+
+**Directory:** `Chapter_14_Crew_AI_QA_Pipeline/`
+
+A 4-agent CrewAI pipeline that turns a single Jira ticket ID into a complete QA package:
+
+| Agent | Output |
+| :--- | :--- |
+| **Senior QA Analyst** | Reads ticket from Jira via MCP (`uvx mcp-atlassian`), extracts requirements / AC / edge cases |
+| **Test Plan Writer** | 12-section markdown test plan → `output/test_plan.md` |
+| **Test Case Designer** | 12-15 detailed test cases in a markdown table → `output/test_cases.md` |
+| **Playwright Coder** | TypeScript test scripts → `output/playwright_tests.md` |
+
+### Ch 14 Flow
+
+```mermaid
+flowchart LR
+    J[Jira MCP<br/>uvx mcp-atlassian] --> A1[Analyst]
+    A1 --> A2[Plan Writer]
+    A2 --> A3[Case Designer]
+    A3 --> A4[Playwright Coder]
+    A4 --> OUT[output/*.md]
+
+    style J fill:#fef3c7,stroke:#92400e
+    style A1 fill:#e8f5e9,stroke:#2e7d32
+    style A2 fill:#e8f5e9,stroke:#2e7d32
+    style A3 fill:#e8f5e9,stroke:#2e7d32
+    style A4 fill:#e8f5e9,stroke:#2e7d32
+    style OUT fill:#ede7f6,stroke:#4527a0,stroke-width:2px
+```
+
+### Run
+
+```bash
+cd Chapter_14_Crew_AI_QA_Pipeline
+python3 -m venv venv && source venv/bin/activate
+pip install crewai "crewai-tools[mcp]" mcp python-dotenv litellm requests
+# .env: GROQ_KEY=...  JIRA_URL=https://<workspace>.atlassian.net  JIRA_EMAIL=...  JIRA_API_TOKEN=...
+venv/bin/python main.py VWO-48
+```
+
+### Notes / gotchas
+
+- **TPM budget:** `mcp-atlassian` exposes ~49 tools. Each tool schema bloats the system prompt. Tools are filtered to `{jira_get_issue, jira_search}` to stay under Groq's 8,000 TPM cap.
+- **Model:** runs on `openai/llama-3.3-70b-versatile` (30 k TPM on Groq free tier). Swap to `openai/openai/gpt-oss-120b` if you upgrade.
+- Same `cache_breakpoint` workaround as Chapter 13.
+
+---
+
+## 📖 Chapter 15: Production QA Pipeline — Templates, CSV, Framework, UI
+
+**Directory:** `Chapter_15_CREW_AI_production_QA_pipeline/`
+
+Production-ready evolution of Chapter 14. Same 4-agent crew, but the outputs are now structured for real downstream use, and a lightweight web UI lets you fan it out across multiple tickets.
+
+### What's different from Ch 14
+
+| Concern | Ch 14 | Ch 15 |
+| :--- | :--- | :--- |
+| Test plan template | Inline string in `crew.py` | Externalised → `templates/testplan.md` |
+| Test case output | Markdown table → `test_cases.md` | **Jira-import CSV** → `test_cases.csv` (Highest/High/Medium/Low priority, wiki markup description, quoted multi-line cells) |
+| Playwright output | Single markdown file | **Multi-file Advanced Playwright Framework** → `output/advanced-playwright-framework/src/{pages,modules,tests,fixtures,testdata}/` |
+| Interface | CLI only | CLI + **Starlette UI** (`ui/app.py`) for multi-ticket fan-out |
+| Multi-ticket | Manual loops | UI textarea → sequential runs → per-ticket snapshot in `runs/<TICKET>/` |
+
+### Ch 15 Architecture
+
+```mermaid
+flowchart LR
+    UI[Starlette UI<br/>ui/app.py] --> RC[run_crew<br/>async to_thread]
+    RC --> C[CrewAI · 4 agents]
+    C --> T1[Plan → templates/testplan.md]
+    C --> T2[Cases → CSV Jira import]
+    C --> T3[Playwright → === FILE === blocks]
+    T3 --> SPL[Splitter<br/>regex parser]
+    SPL --> FW[advanced-playwright-framework/<br/>src/pages · modules · tests · fixtures · testdata]
+    RC --> SNAP[Snapshot output/<br/>→ runs/&lt;TICKET&gt;/]
+
+    style UI fill:#cffafe,stroke:#06b6d4
+    style C fill:#e8f5e9,stroke:#2e7d32
+    style SPL fill:#fef3c7,stroke:#92400e
+    style FW fill:#ede7f6,stroke:#4527a0,stroke-width:2px
+```
+
+### Folder layout
+
+```
+Chapter_15_CREW_AI_production_QA_pipeline/
+├── crew.py                       # pipeline + post-process file splitter
+├── main.py                       # CLI entrypoint
+├── templates/
+│   └── testplan.md               # extracted plan template
+├── docs/
+│   └── ARCHITECTURE.html         # Advanced Playwright Framework spec
+├── ui/
+│   ├── app.py                    # Starlette + Jinja2 ASGI app
+│   └── templates/
+│       ├── index.html            # textarea form
+│       └── results.html          # folder tree + CSV table + MD pane
+├── output/                       # latest run (gitignored)
+├── runs/<TICKET>/                # per-ticket snapshots (gitignored)
+└── PROMPTS.md                    # every prompt used to build this chapter
+```
+
+### Run the UI
+
+```bash
+cd Chapter_15_CREW_AI_production_QA_pipeline
+python3 -m venv venv && source venv/bin/activate
+pip install crewai "crewai-tools[mcp]" mcp python-dotenv litellm requests \
+            uvicorn starlette jinja2 python-multipart
+venv/bin/python -m uvicorn ui.app:app --host 127.0.0.1 --port 8000 --reload
+# → http://127.0.0.1:8000/  (paste one or many Jira IDs)
+```
+
+### Run from CLI
+
+```bash
+venv/bin/python main.py VWO-48
+```
+
+### Key engineering notes
+
+- **Agent 4 output protocol:** the Playwright agent emits literal blocks
+  `=== FILE: <relpath> === ... === END FILE ===`. A regex in `crew.py`
+  (`_FILE_BLOCK`) parses them and writes each block into
+  `output/advanced-playwright-framework/<relpath>`, auto-creating subdirs.
+  Stray ` ```ts ` fences are stripped.
+- **Async-safe execution:** CrewAI's sync `crew.kickoff()` refuses to run
+  inside an active asyncio loop. The Starlette handler calls
+  `await asyncio.to_thread(run_crew, ticket)` so the sync pipeline runs in
+  a worker thread.
+- **CSV format:** header is `Summary,Issue Type,Priority,Labels,Components,Description,Reporter,Assignee`. Priority maps P0→Highest, P1→High, P2→Medium, P3→Low. `Description` uses Jira wiki markup (`h3. Preconditions / Steps / Expected Result / Test Data / Category`) so it imports cleanly into a Jira project.
+- See [`Chapter_15_CREW_AI_production_QA_pipeline/PROMPTS.md`](Chapter_15_CREW_AI_production_QA_pipeline/PROMPTS.md) for every prompt that drove the build.
+
+---
+
 *Continue following this repository for future chapters exploring deeper AI integrations!*

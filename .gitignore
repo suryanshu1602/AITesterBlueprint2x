@@ -12,6 +12,11 @@
 # env
 **/.env
 
+# generated artefacts (CrewAI pipelines)
+**/output/
+**/runs/
+**/playwright_raw.txt
+
 # node
 **/node_modules/
 .mcp.json
