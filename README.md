@@ -378,4 +378,411 @@ All collections live in the **`ATB2X Demo`** Postman workspace (`b4d9ec74-5bb8-4
 
 ---
 
+## 📖 Chapter 11: Python Learning Fundamentals
+
+**Directory:** `Chapter_11_Python_Learning/`
+
+A self-paced Python primer for QA engineers. Each file is a standalone, runnable lesson with inline comments and a quick-reference table at the bottom.
+
+### Chapter 11 Learning Path
+
+```mermaid
+flowchart LR
+    Y1(Hello Python + Vars) --> Y2(Identifiers & Keywords)
+    Y2 --> Y3(Case Styles)
+    Y3 --> Y4(Literals)
+    Y4 --> Y5(Operators)
+    Y5 --> Y6(Strings)
+    Y6 --> Y7(List / Tuple / Dict)
+
+    style Y1 fill:#e3f2fd,stroke:#1565c0
+    style Y2 fill:#e3f2fd,stroke:#1565c0
+    style Y3 fill:#e3f2fd,stroke:#1565c0
+    style Y4 fill:#e3f2fd,stroke:#1565c0
+    style Y5 fill:#e3f2fd,stroke:#1565c0
+    style Y6 fill:#e3f2fd,stroke:#1565c0
+    style Y7 fill:#e3f2fd,stroke:#1565c0
+```
+
+### Files
+
+| # | File | Topic |
+| :---: | :--- | :--- |
+| 01 | `01_Hello_Python.py` | First `print`, running a `.py` file |
+| 02 | `02_Basic.py` | Variables, types (str, int, float, bool, None) |
+| 03 | `03_Basic2.py` | Type conversions, input/output |
+| 04 | `04_AIAGent_Query.py` | Calling an LLM from Python |
+| 05 | `05_Identifier.py` | Identifier rules — allowed chars, no spaces, no `$`/`-`/`.`, PEP 8 |
+| 06 | `06_Keyword.py` | Reserved keywords via `keyword.kwlist` |
+| 07 | `07_Case.py` | snake_case, PascalCase, camelCase, kebab-case, dunder |
+| 08 | `08_Literals.py` | int/float/complex, strings (raw/f-string/bytes), bool, None, collections |
+| 09 | `09_Operators.py` | Arithmetic, logical, bitwise, identity, membership, ternary, precedence table |
+| 10 | `10_Strings.py` | Full string-method reference (case, trim, search, split/join, format) |
+| 11 | `11_List_Tuple_Dict.py` | Collection methods with QA examples |
+| 12 | `12_Tuple.py` | Tuple immutability demo |
+
+---
+
+## 📖 Chapter 12: TestCase MCP — Expose Your Test Suite to Any LLM
+
+**Directory:** `Chapter_12_MCP_Creation/`
+
+A local **FastMCP** server (`tc_mcp.py`) that wraps a 478-row VWO test case CSV and exposes it as MCP tools, resources, and prompts. Any MCP-compatible client (Claude Desktop, Cursor, Claude Code, MCP Inspector) can connect over stdio and search, filter, fetch, or **create** test cases in natural language.
+
+### Chapter 12 Architecture
+
+```mermaid
+flowchart LR
+    CSV[testcases_vwo_100.csv<br/>478 rows] --> SERVER[tc_mcp.py<br/>FastMCP]
+    SERVER --> TOOLS[15 tools<br/>search · stats · add]
+    SERVER --> RES[2 resources + 1 template<br/>testcases://...]
+    SERVER --> PROMPTS[2 prompts<br/>review · regression pack]
+    SERVER --> CLIENT[MCP Client<br/>Claude Desktop · Cursor · Inspector]
+
+    style CSV fill:#fef3c7,stroke:#92400e
+    style SERVER fill:#cffafe,stroke:#06b6d4
+    style CLIENT fill:#ede7f6,stroke:#4527a0,stroke-width:2px
+```
+
+### What it exposes
+
+| Type | Items | Notes |
+| :--- | :--- | :--- |
+| **Tools (15)** | `list_test_cases`, `get_test_case`, `search_by_priority`, `search_by_module`, `search_by_label`, `search_by_owner`, `search_by_status`, `search_by_sprint`, `search_test_cases` (multi-filter + free text), `list_priorities / modules / labels / owners`, `stats`, `add_test_case` (write — persists to CSV) | All filters AND-combined; auto-id `TC-00###` on add |
+| **Resources** | `testcases://all`, `testcases://stats`, `testcases://{test_case_id}` | Browsable read-only data |
+| **Prompts** | `review_test_case`, `suggest_regression_pack` | Reusable LLM instructions |
+
+### Run + inspect
+
+```bash
+cd Chapter_12_MCP_Creation
+python3 -m venv venv && source venv/bin/activate
+pip install fastmcp
+python tc_mcp.py                                         # stdio
+npx @modelcontextprotocol/inspector ./venv/bin/python ./tc_mcp.py
+# Inspector: http://localhost:6274
+```
+
+See [`Chapter_12_MCP_Creation/README.md`](Chapter_12_MCP_Creation/README.md) for Claude Desktop / Cursor / Claude Code configs and [`PROMPT.md`](Chapter_12_MCP_Creation/PROMPT.md) for the original build prompts and lesson recap.
+
+---
+
+## 📖 Chapter 13: Multi-Agent QA with CrewAI
+
+**Directory:** `Chapter_13_CREW_AI_Agent/`
+
+Three progressively-richer **CrewAI** examples that show how to assemble specialist QA agents (analyst, researcher, writer, triage, root-cause, test strategy) on top of **GPT-OSS 120B** running on Groq. Includes a live **Jira integration** that pulls bugs straight from `atlassian.net`.
+
+### Chapter 13 Agent Flow
+
+```mermaid
+flowchart LR
+    JIRA[Jira REST API<br/>atlassian.net] --> TRIAGE[Bug Triage Analyst<br/>P0..P4 + category]
+    TRIAGE --> RCA[Root Cause Specialist<br/>UI / API / DB / Infra]
+    RCA --> TEST[Test Strategy Advisor<br/>Playwright TS]
+    TEST --> OUT[📋 Triage Report]
+
+    style JIRA fill:#fef3c7,stroke:#92400e
+    style TRIAGE fill:#e8f5e9,stroke:#2e7d32
+    style RCA fill:#e8f5e9,stroke:#2e7d32
+    style TEST fill:#e8f5e9,stroke:#2e7d32
+    style OUT fill:#ede7f6,stroke:#4527a0,stroke-width:2px
+```
+
+### Examples
+
+| # | File | What it does |
+| :---: | :--- | :--- |
+| 01 | `01_Test_Analyst_Agent.py` | Single agent — senior QA generates 5–10 test cases for the VWO login page. |
+| 02 | `02_Research_Write_AI_Agent.py` | Two sequential agents — researcher surfaces the top-5 bug categories, writer turns them into a PR-time prevention checklist. |
+| 03 | `03_Building_QABugTriageCrew.py` | Three agents + Jira API — fetches a real ticket, triages it (severity, category), runs RCA, recommends Playwright tests. |
+
+### Setup
+
+`.env` (inside `Chapter_13_CREW_AI_Agent/`):
+
+```
+GROQ_KEY=gsk_xxxxx
+JIRA_EMAIL=you@example.com
+JIRA_API_TOKEN=xxxxx
+```
+
+> `.env` is gitignored (`**/.env`). Never paste API keys into chat or commits — rotate immediately if leaked.
+
+```bash
+cd Chapter_13_CREW_AI_Agent
+python3 -m venv venv && source venv/bin/activate
+pip install crewai python-dotenv requests
+venv/bin/python 01_Test_Analyst_Agent.py
+venv/bin/python 02_Research_Write_AI_Agent.py
+venv/bin/python 03_Building_QABugTriageCrew.py
+```
+
+### Notes / gotchas
+
+- **Model id:** `openai/openai/gpt-oss-120b` — the leading `openai/` tells LiteLLM to route through the OpenAI provider; `openai/gpt-oss-120b` is Groq's actual model id.
+- **CrewAI 1.14.6 `cache_breakpoint` bug:** Groq's OpenAI-compatible endpoint rejects a `cache_breakpoint` field that CrewAI injects. All three scripts subclass `LLM` → `GroqLLM` and strip the field before every call.
+
+---
+
+## 📖 Chapter 14: CrewAI + Jira MCP — Auto QA Pipeline
+
+**Directory:** `Chapter_14_Crew_AI_QA_Pipeline/`
+
+A 4-agent CrewAI pipeline that turns a single Jira ticket ID into a complete QA package:
+
+| Agent | Output |
+| :--- | :--- |
+| **Senior QA Analyst** | Reads ticket from Jira via MCP (`uvx mcp-atlassian`), extracts requirements / AC / edge cases |
+| **Test Plan Writer** | 12-section markdown test plan → `output/test_plan.md` |
+| **Test Case Designer** | 12-15 detailed test cases in a markdown table → `output/test_cases.md` |
+| **Playwright Coder** | TypeScript test scripts → `output/playwright_tests.md` |
+
+### Ch 14 Flow
+
+```mermaid
+flowchart LR
+    J[Jira MCP<br/>uvx mcp-atlassian] --> A1[Analyst]
+    A1 --> A2[Plan Writer]
+    A2 --> A3[Case Designer]
+    A3 --> A4[Playwright Coder]
+    A4 --> OUT[output/*.md]
+
+    style J fill:#fef3c7,stroke:#92400e
+    style A1 fill:#e8f5e9,stroke:#2e7d32
+    style A2 fill:#e8f5e9,stroke:#2e7d32
+    style A3 fill:#e8f5e9,stroke:#2e7d32
+    style A4 fill:#e8f5e9,stroke:#2e7d32
+    style OUT fill:#ede7f6,stroke:#4527a0,stroke-width:2px
+```
+
+### Run
+
+```bash
+cd Chapter_14_Crew_AI_QA_Pipeline
+python3 -m venv venv && source venv/bin/activate
+pip install crewai "crewai-tools[mcp]" mcp python-dotenv litellm requests
+# .env: GROQ_KEY=...  JIRA_URL=https://<workspace>.atlassian.net  JIRA_EMAIL=...  JIRA_API_TOKEN=...
+venv/bin/python main.py VWO-48
+```
+
+### Notes / gotchas
+
+- **TPM budget:** `mcp-atlassian` exposes ~49 tools. Each tool schema bloats the system prompt. Tools are filtered to `{jira_get_issue, jira_search}` to stay under Groq's 8,000 TPM cap.
+- **Model:** runs on `openai/llama-3.3-70b-versatile` (30 k TPM on Groq free tier). Swap to `openai/openai/gpt-oss-120b` if you upgrade.
+- Same `cache_breakpoint` workaround as Chapter 13.
+
+---
+
+## 📖 Chapter 15: Production QA Pipeline — Templates, CSV, Framework, UI
+
+**Directory:** `Chapter_15_CREW_AI_production_QA_pipeline/`
+
+Production-ready evolution of Chapter 14. Same 4-agent crew, but the outputs are now structured for real downstream use, and a lightweight web UI lets you fan it out across multiple tickets.
+
+### What's different from Ch 14
+
+| Concern | Ch 14 | Ch 15 |
+| :--- | :--- | :--- |
+| Test plan template | Inline string in `crew.py` | Externalised → `templates/testplan.md` |
+| Test case output | Markdown table → `test_cases.md` | **Jira-import CSV** → `test_cases.csv` (Highest/High/Medium/Low priority, wiki markup description, quoted multi-line cells) |
+| Playwright output | Single markdown file | **Multi-file Advanced Playwright Framework** → `output/advanced-playwright-framework/src/{pages,modules,tests,fixtures,testdata}/` |
+| Interface | CLI only | CLI + **Starlette UI** (`ui/app.py`) for multi-ticket fan-out |
+| Multi-ticket | Manual loops | UI textarea → sequential runs → per-ticket snapshot in `runs/<TICKET>/` |
+
+### Ch 15 Architecture
+
+```mermaid
+flowchart LR
+    UI[Starlette UI<br/>ui/app.py] --> RC[run_crew<br/>async to_thread]
+    RC --> C[CrewAI · 4 agents]
+    C --> T1[Plan → templates/testplan.md]
+    C --> T2[Cases → CSV Jira import]
+    C --> T3[Playwright → === FILE === blocks]
+    T3 --> SPL[Splitter<br/>regex parser]
+    SPL --> FW[advanced-playwright-framework/<br/>src/pages · modules · tests · fixtures · testdata]
+    RC --> SNAP[Snapshot output/<br/>→ runs/&lt;TICKET&gt;/]
+
+    style UI fill:#cffafe,stroke:#06b6d4
+    style C fill:#e8f5e9,stroke:#2e7d32
+    style SPL fill:#fef3c7,stroke:#92400e
+    style FW fill:#ede7f6,stroke:#4527a0,stroke-width:2px
+```
+
+### Folder layout
+
+```
+Chapter_15_CREW_AI_production_QA_pipeline/
+├── crew.py                       # pipeline + post-process file splitter
+├── main.py                       # CLI entrypoint
+├── templates/
+│   └── testplan.md               # extracted plan template
+├── docs/
+│   └── ARCHITECTURE.html         # Advanced Playwright Framework spec
+├── ui/
+│   ├── app.py                    # Starlette + Jinja2 ASGI app
+│   └── templates/
+│       ├── index.html            # textarea form
+│       └── results.html          # folder tree + CSV table + MD pane
+├── output/                       # latest run (gitignored)
+├── runs/<TICKET>/                # per-ticket snapshots (gitignored)
+└── PROMPTS.md                    # every prompt used to build this chapter
+```
+
+### Run the UI
+
+```bash
+cd Chapter_15_CREW_AI_production_QA_pipeline
+python3 -m venv venv && source venv/bin/activate
+pip install crewai "crewai-tools[mcp]" mcp python-dotenv litellm requests \
+            uvicorn starlette jinja2 python-multipart
+venv/bin/python -m uvicorn ui.app:app --host 127.0.0.1 --port 8000 --reload
+# → http://127.0.0.1:8000/  (paste one or many Jira IDs)
+```
+
+### Run from CLI
+
+```bash
+venv/bin/python main.py VWO-48
+```
+
+### Key engineering notes
+
+- **Agent 4 output protocol:** the Playwright agent emits literal blocks
+  `=== FILE: <relpath> === ... === END FILE ===`. A regex in `crew.py`
+  (`_FILE_BLOCK`) parses them and writes each block into
+  `output/advanced-playwright-framework/<relpath>`, auto-creating subdirs.
+  Stray ` ```ts ` fences are stripped.
+- **Async-safe execution:** CrewAI's sync `crew.kickoff()` refuses to run
+  inside an active asyncio loop. The Starlette handler calls
+  `await asyncio.to_thread(run_crew, ticket)` so the sync pipeline runs in
+  a worker thread.
+- **CSV format:** header is `Summary,Issue Type,Priority,Labels,Components,Description,Reporter,Assignee`. Priority maps P0→Highest, P1→High, P2→Medium, P3→Low. `Description` uses Jira wiki markup (`h3. Preconditions / Steps / Expected Result / Test Data / Category`) so it imports cleanly into a Jira project.
+- See [`Chapter_15_CREW_AI_production_QA_pipeline/PROMPTS.md`](Chapter_15_CREW_AI_production_QA_pipeline/PROMPTS.md) for every prompt that drove the build.
+
+---
+
+## 📖 Chapter 16: DeepEval — Quality Metrics for LLM Pipelines (work in progress)
+
+**Directory:** `Chapter_16_DeepEval/`
+
+Uses the [DeepEval](https://github.com/confident-ai/deepeval) framework to **measure** the quality of outputs produced by the Chapter 14 / 15 CrewAI pipelines — test plans, test cases, generated Playwright code. Metrics: faithfulness, answer relevancy, hallucination, contextual precision/recall, and custom G-Eval rubrics for QA artefacts.
+
+### Setup
+
+```bash
+cd Chapter_16_DeepEval
+python3 -m venv venv && source venv/bin/activate
+pip install deepeval requests
+```
+
+### Files
+
+| File | Purpose |
+| :--- | :--- |
+| `SKILL.md` | Tiered-model-orchestration skill (orchestrator on Opus/Fable, subagents on Sonnet/Haiku) — used to keep evaluation runs cheap |
+
+> Fine-tuning content moved to [Chapter 17](#-chapter-17-fine-tuning-open-source-models-on-your-own-data) so this chapter stays focused on evaluation. Hands-on DeepEval exercises live in [Chapter 18](#-chapter-18-deepeval-exercises--llm-as-judge-evaluation).
+
+---
+
+## 📖 Chapter 17: Fine-Tuning Open-Source Models on Your Own Data
+
+**Directory:** `Chapter_17_Fine_Tuning/`
+
+Take a free, open-source LLM (Qwen2.5-Coder, Llama 3, Mistral, Phi, ...) and adapt it to your own knowledge — a **code repository**, a **Jira project**, a stack of **PDFs**, internal wikis, chat transcripts, anything. Bot then answers in your voice against your facts, fully on your machine.
+
+### What you can fine-tune against
+
+| Source | Example use |
+| :--- | :--- |
+| **Code repo** | "How does `LoginModule` call `LoginPage`?" |
+| **Jira project** | "List unresolved P0 bugs in Reports module from sprint 25.S38." |
+| **PDF library** | "What does our security playbook say about API token rotation?" |
+| **Confluence / wiki** | "What is our standard test plan template?" |
+| **Slack / chat logs** | "What did the team decide about the discount-code bug?" |
+| **Test case CSVs** | "Show regression tests owned by `aditya.rao` in the Editor module." |
+| **Training videos** (Whisper transcripts) | "When in the onboarding video do they show staging credentials?" |
+| **OpenAPI / Postman** | "Generate a Playwright API test for `POST /booking` with full assertions." |
+
+### RAG vs LoRA
+
+| Approach | Weights changed? | Compute | When |
+| :--- | :--- | :--- | :--- |
+| **RAG** | No | CPU | Facts that change often; start here |
+| **LoRA / QLoRA** | Yes (small adapter) | GPU / Apple Silicon (MLX) | Bake in tone / domain jargon |
+| **Full fine-tune** | Yes (all weights) | Multi-GPU cluster | Almost never the right choice |
+
+### Stack
+
+Ollama (`qwen2.5-coder:14b` + `nomic-embed-text`) → LanceDB / Chroma vector store → Python glue (`index_repo.py`, `ask.py`). Optional LoRA via MLX-LM (Mac) or Unsloth (CUDA). Everything offline.
+
+See [`Chapter_17_Fine_Tuning/README.md`](Chapter_17_Fine_Tuning/README.md) and [`Fine_TUNE_Instructions.md`](Chapter_17_Fine_Tuning/Fine_TUNE_Instructions.md) for the full Qwen2.5-Coder + Ollama recipe.
+
+---
+
+## 📖 Chapter 18: DeepEval Exercises — LLM-as-Judge Evaluation
+
+**Directory:** `Chapter_18_DeepEval/`
+
+Hands-on exercises with the [DeepEval](https://github.com/confident-ai/deepeval) evaluation framework. Each test sends a real prompt to a real LLM, then a **separate judge LLM** scores the answer using metrics like `AnswerRelevancyMetric` and `HallucinationMetric`. Push optional to the Confident AI dashboard for history + drift tracking.
+
+### Setup
+
+```bash
+cd Chapter_18_DeepEval
+python3 -m venv venv && source venv/bin/activate
+# deepeval 4.0.6 has a packaging bug ("No module named 'deepeval.deepeval'");
+# pin to <4 for now.
+pip install "deepeval<4" requests openai python-dotenv
+```
+
+`.env.local` (gitignored — never commit) keys:
+
+```
+OPENAI_API_KEY=sk-...
+GROQ_API_KEY=gsk_...
+OPENROUTER_API_KEY=sk-or-v1-...
+CONFIDENT_API_KEY=confident-...     # optional, only if pushing to the cloud dashboard
+```
+
+### Exercises
+
+| File | Model under test | Judge | What it teaches |
+| :--- | :--- | :--- | :--- |
+| `exercises/test_01_Basic_Anwser_Relevancy.py` | hard-coded answer string | default (OpenAI) | The two foundational metrics — AnswerRelevancy + Hallucination. `LLMTestCase` shape, `assert_test`, the `context=[...]` requirement for Hallucination. |
+| `exercises/test_02_Groq_Llama4_vs_GPT41_Judge.py` | Groq `meta-llama/llama-4-scout-17b-16e-instruct` | OpenAI `gpt-4.1` | Real Groq call via OpenAI-compatible endpoint; pass `model="gpt-4.1"` to each metric to choose the judge. |
+| `exercises/test_03_OpenRouter_Llama4_vs_GPT41_Judge.py` | OpenRouter `meta-llama/llama-4-scout` | OpenAI `gpt-4.1` | Same shape as Exercise 2, but via the OpenRouter gateway — shows how easy it is to swap providers (only base URL, model id, key change). |
+
+All three follow the same pattern:
+
+```mermaid
+flowchart LR
+    Q[Prompt] --> M[Model under test]
+    M --> A[Answer]
+    A --> J[Judge LLM<br/>via DeepEval metrics]
+    J --> R[Pass/Fail + Score + Reason]
+
+    style M fill:#fef3c7,stroke:#92400e
+    style J fill:#e8f5e9,stroke:#2e7d32
+    style R fill:#ede7f6,stroke:#4527a0,stroke-width:2px
+```
+
+### Run a single test
+
+```bash
+deepeval test run exercises/test_02_Groq_Llama4_vs_GPT41_Judge.py -d all -v
+```
+
+DeepEval requires the `test_` filename prefix; that's why Exercise 1 was renamed from `01_*` to `test_01_*`.
+
+### Gotchas already worked through
+
+- **deepeval 4.0.6 packaging bug:** internal `deepeval.deepeval` import is missing. Pin `deepeval<4`.
+- **`HallucinationMetric` needs `context=[...]`** on the `LLMTestCase`, otherwise it throws.
+- **macOS DNS cache:** Python's `getaddrinfo()` can keep a stale negative entry for `api.confident-ai.com`. Fix once with `sudo dscacheutil -flushcache && sudo killall -HUP mDNSResponder`.
+- **Push to Confident AI:** set `CONFIDENT_API_KEY` in `.env.local`; `deepeval test run` auto-uploads when present.
+
+---
+
 *Continue following this repository for future chapters exploring deeper AI integrations!*

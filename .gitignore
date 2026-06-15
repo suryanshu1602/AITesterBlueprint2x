@@ -9,6 +9,21 @@
 **/__pycache__/
 *.pyc
 
+# env
+**/.env
+**/.env.local
+**/.env.*.local
+
+# generated artefacts (CrewAI pipelines)
+**/output/
+**/runs/
+**/playwright_raw.txt
+
+# deepeval + pytest local caches
+**/.deepeval/
+**/.deepeval-cache/
+**/.pytest_cache/
+
 # node
 **/node_modules/
 .mcp.json
