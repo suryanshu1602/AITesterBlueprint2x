@@ -862,27 +862,48 @@ The evaluation harness that points DeepEval metrics at the two live apps. **Swit
 - `groq` → `GROQ_API_KEY`, `openai/gpt-oss-120b` (override `JUDGE_MODEL_GROQ`)
 - `ollama` → local Ollama at `http://localhost:11434/v1`, `gpt-oss:20b` (override `JUDGE_MODEL_OLLAMA`)
 
+**Two ways to run the same metric registry** (one source of truth in `dashboard/registry.py` — 22 metric × target rows):
+
 ```bash
 cd 03_DeepFramework
+python3 -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
-export JUDGE_PROVIDER=groq
-export GROQ_API_KEY=gsk_...
-# Subsystems A and B must be running first
-python run_all.py
-open reports/report.html
+# Subsystems A (:8201) and B (:8202) must be running first; .env is auto-loaded
+
+# 1) pytest — CI-style, per-golden cases
+export JUDGE_PROVIDER=openai          # or groq / ollama
+pytest tests/test_01_chatbot_answer_relevancy.py -v
+
+# 1b) push results to the Confident AI cloud dashboard
+deepeval test run tests/test_01_chatbot_answer_relevancy.py   # needs CONFIDENT_API_KEY
+
+# 2) interactive local dashboard on :8203 — click any metric, live pass/fail/score/reason
+uvicorn dashboard.app:app --port 8203
+open http://localhost:8203
 ```
+
+| Piece | What |
+|-------|------|
+| `conftest.py` | loads `.env`, builds the judge from `JUDGE_PROVIDER`, exposes `chatbot` / `rag` / `judge` / golden fixtures, auto-skips when a target app is down |
+| `pytest.ini` | markers (`chatbot`, `rag`, `quality`, `safety`, `slow`, `needs_chatbot`, `needs_rag`) |
+| `dashboard/` | FastAPI app (`:8203`) that drives the registry interactively + switches judge provider live |
+| `datasets/` | `chatbot_goldens.py` (19 goldens + 13 safety prompts), `rag_goldens.py` (8 goldens) |
+| `llm_providers/` | `CompatibleJudge` + `JUDGE_PROVIDER` factory |
+| `targets/` | HTTP clients for the chatbot and RAG apps |
 
 | Scoring direction | Metrics |
 |-------------------|---------|
 | Higher is better (threshold = floor) | answer relevancy, faithfulness, contextual precision/recall/relevancy, summarization, G-Evals, conversation relevancy |
-| Lower is better (threshold = ceiling) | hallucination, bias, toxicity |
+| Lower is better (threshold = ceiling) | hallucination, bias, toxicity, PII leakage |
 
-> Subsystem C is scaffolded (judge factory + provider abstraction + smoke test). The per-metric test files (`tests/test_NN_*.py`), golden datasets, and `run_all.py` runner are being filled in.
+> **deepeval pinned to `3.9.9`.** The latest release (`4.0.6`) ships a broken `deepeval test run` CLI (`from deepeval.deepeval.config.settings import ...` — a typo in their package; the library itself works fine). `3.9.9` is the last release whose CLI works out of the box and still has every metric the registry uses (incl. `PIILeakageMetric`, `KnowledgeRetentionMetric`, `ConversationCompletenessMetric`).
 
 ### Notes
 
 - Each `.env` is gitignored — never commit real keys. Set `GROQ_API_KEY` / `OPENAI_API_KEY` / `CONFIDENT_API_KEY` per subsystem.
 - The chatbot and RAG apps were verified live: chatbot answers shipping/returns questions via Groq; RAG seeds 21 chunks from 5 docs and returns grounded, source-cited answers.
+- The dashboard was verified end-to-end against both apps (e.g. `chatbot.answer_relevancy` → 1.0 pass, `rag.contextual_recall` → 1.0 pass) with the Groq and OpenAI judges.
+- **Judge rate limits:** Groq's free tier caps `gpt-oss-120b` at 8000 TPM, which `deepeval test run` can exceed when it fans out judge calls. Use the OpenAI judge (`JUDGE_PROVIDER=openai`, `gpt-4o-mini`) for large runs.
 
 ---
 

@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>DeepEval Dashboard</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="/static/dashboard.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">◆</span>
+      <div>
+        <h1>DeepEval Dashboard</h1>
+        <p class="tagline">Live metric runs against the chatbot and RAG pipeline</p>
+      </div>
+    </div>
+    <div class="controls">
+      <label>
+        <span>Target</span>
+        <select id="target">
+          <option value="all">All</option>
+          <option value="chatbot">Chatbot (A)</option>
+          <option value="rag">RAG Explorer (B)</option>
+          <option value="synthetic">Synthetic</option>
+        </select>
+      </label>
+      <label>
+        <span>Judge LLM</span>
+        <select id="provider">
+          <option value="openai">OpenAI</option>
+          <option value="groq" selected>Groq</option>
+          <option value="ollama">Ollama (local)</option>
+        </select>
+      </label>
+      <label>
+        <span>Judge model</span>
+        <input id="judge-model" type="text" placeholder="auto" />
+      </label>
+      <button id="apply-judge" class="btn ghost">Apply judge</button>
+      <button id="run-all" class="btn">▶ Run all visible</button>
+    </div>
+  </header>
+
+  <section class="status-row">
+    <div class="status-card">
+      <span class="dot ok" id="dot-chatbot"></span>
+      <div>
+        <strong>Chatbot</strong>
+        <small id="url-chatbot">—</small>
+      </div>
+    </div>
+    <div class="status-card">
+      <span class="dot ok" id="dot-rag"></span>
+      <div>
+        <strong>RAG</strong>
+        <small id="url-rag">—</small>
+      </div>
+    </div>
+    <div class="status-card">
+      <span class="dot ok"></span>
+      <div>
+        <strong>Judge</strong>
+        <small id="judge-banner">—</small>
+      </div>
+    </div>
+    <div class="status-card summary">
+      <div class="counts">
+        <span class="count pass" id="count-pass">0</span>
+        <span class="count fail" id="count-fail">0</span>
+        <span class="count pending" id="count-pending">0</span>
+      </div>
+      <small>pass · fail · pending</small>
+    </div>
+  </section>
+
+  <section class="filters">
+    <span class="label">Categories:</span>
+    <button class="chip active" data-cat="all">All</button>
+    <button class="chip" data-cat="quality">Quality</button>
+    <button class="chip" data-cat="retrieval">Retrieval</button>
+    <button class="chip" data-cat="safety">Safety</button>
+    <button class="chip" data-cat="geval">G-Eval</button>
+    <button class="chip" data-cat="conversational">Conversational</button>
+  </section>
+
+  <main id="grid" class="grid"></main>
+
+  <dialog id="detail">
+    <article id="detail-body"></article>
+    <form method="dialog">
+      <button class="btn ghost">Close</button>
+    </form>
+  </dialog>
+
+<script>
+const $ = (sel) => document.querySelector(sel);
+const grid = $("#grid");
+
+let allMetrics = [];
+let activeCategory = "all";
+let activeTarget = "all";
+let counts = { pass: 0, fail: 0, pending: 0 };
+
+function classifyResult(r) {
+  if (!r) return { cls: "pending", label: "Pending" };
+  if (!r.ok) return { cls: "error", label: "Error" };
+  return r.passed ? { cls: "pass", label: "Pass" } : { cls: "fail", label: "Fail" };
+}
+
+function metricCard(m) {
+  const card = document.createElement("article");
+  card.className = `card cat-${m.category}`;
+  card.dataset.id = m.id;
+  card.dataset.category = m.category;
+  card.innerHTML = `
+    <header>
+      <div class="meta">
+        <span class="cat ${m.category}">${m.category}</span>
+        <span class="target target-${m.target}">${m.target}</span>
+        <span class="threshold mono">${m.display_threshold}</span>
+      </div>
+      <h3>${m.name}</h3>
+      <p class="desc">${m.description}</p>
+    </header>
+    <div class="result" data-empty="true">
+      <div class="state pending">
+        <span class="badge">Pending</span>
+      </div>
+      <small class="hint">Click Run to evaluate</small>
+    </div>
+    <footer>
+      <button class="btn run" data-id="${m.id}">▶ Run</button>
+      <button class="btn ghost details" disabled>Details</button>
+    </footer>
+  `;
+  return card;
+}
+
+function refreshCounts() {
+  $("#count-pass").textContent = counts.pass;
+  $("#count-fail").textContent = counts.fail;
+  $("#count-pending").textContent = counts.pending;
+}
+
+function renderResult(card, result) {
+  const out = card.querySelector(".result");
+  const cls = classifyResult(result);
+  const score = (result && typeof result.score === "number") ? result.score.toFixed(3) : "—";
+  const elapsed = result && result.elapsed_ms ? `${result.elapsed_ms} ms` : "";
+  const judge = result && result.judge ? result.judge : "";
+  out.innerHTML = `
+    <div class="state ${cls.cls}">
+      <span class="badge">${cls.label}</span>
+      <span class="score mono">${score}</span>
+    </div>
+    <div class="bar"><div class="bar-fill ${cls.cls}" style="width:${Math.min(1, Math.max(0, result?.score ?? 0)) * 100}%"></div></div>
+    <p class="reason">${(result && result.reason) || (result?.error || "")}</p>
+    <small class="hint mono">${elapsed} · ${judge}</small>
+  `;
+  out.removeAttribute("data-empty");
+  card.querySelector(".details").disabled = !result || !result.ok;
+  card.dataset.lastResult = JSON.stringify(result || {});
+}
+
+async function runMetric(metricId) {
+  const card = grid.querySelector(`[data-id="${CSS.escape(metricId)}"]`);
+  if (!card) return;
+  card.classList.add("running");
+  const out = card.querySelector(".result");
+  out.innerHTML = `<div class="state running"><span class="badge">Running…</span></div><div class="bar"><div class="bar-fill running" style="width:30%"></div></div><small class="hint">Waiting for judge…</small>`;
+  try {
+    const r = await fetch("/api/run", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ metric_id: metricId }),
+    });
+    const data = await r.json();
+    if (data.passed === true) counts.pass++;
+    else if (data.ok === false) counts.fail++;
+    else counts.fail++;
+    counts.pending = Math.max(0, counts.pending - 1);
+    refreshCounts();
+    renderResult(card, data);
+  } catch (e) {
+    renderResult(card, { ok: false, error: e.message });
+  } finally {
+    card.classList.remove("running");
+  }
+}
+
+function applyFilter() {
+  for (const card of grid.children) {
+    const inCat = activeCategory === "all" || card.dataset.category === activeCategory;
+    const inTar = activeTarget === "all" || card.dataset.target === activeTarget;
+    card.style.display = (inCat && inTar) ? "" : "none";
+  }
+}
+
+async function loadMetrics() {
+  const r = await fetch("/api/metrics");
+  const d = await r.json();
+  allMetrics = d.metrics;
+  grid.innerHTML = "";
+  counts = { pass: 0, fail: 0, pending: allMetrics.length };
+  refreshCounts();
+  for (const m of allMetrics) {
+    const card = metricCard(m);
+    card.dataset.target = m.target;
+    grid.appendChild(card);
+  }
+  applyFilter();
+}
+
+async function loadInfo() {
+  const r = await fetch("/api/info");
+  const d = await r.json();
+  $("#dot-chatbot").className = "dot " + (d.targets.chatbot.alive ? "ok" : "warn");
+  $("#dot-rag").className = "dot " + (d.targets.rag.alive ? "ok" : "warn");
+  $("#url-chatbot").textContent = d.targets.chatbot.url + (d.targets.chatbot.alive ? "" : "  · DOWN");
+  $("#url-rag").textContent = d.targets.rag.url + (d.targets.rag.alive ? "" : "  · DOWN");
+  $("#judge-banner").textContent = d.judge.provider + " · " + d.judge.model;
+  $("#provider").value = d.current_provider;
+}
+
+async function applyJudge() {
+  const provider = $("#provider").value;
+  const model = $("#judge-model").value.trim();
+  const r = await fetch("/api/judge", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ provider, model: model || null }),
+  });
+  const d = await r.json();
+  $("#judge-banner").textContent = d.provider + " · " + d.model;
+}
+
+grid.addEventListener("click", (e) => {
+  const runBtn = e.target.closest(".run");
+  if (runBtn) { runMetric(runBtn.dataset.id); return; }
+  const detBtn = e.target.closest(".details");
+  if (detBtn) {
+    const card = detBtn.closest(".card");
+    const r = JSON.parse(card.dataset.lastResult || "{}");
+    if (!r) return;
+    $("#detail-body").innerHTML = `
+      <h2>${card.querySelector("h3").textContent}</h2>
+      <table class="kv">
+        <tr><th>Metric ID</th><td class="mono">${r.metric_id}</td></tr>
+        <tr><th>Score</th><td class="mono">${(r.score ?? "—")}</td></tr>
+        <tr><th>Threshold</th><td class="mono">${r.higher_is_better ? "≥" : "≤"} ${r.threshold}</td></tr>
+        <tr><th>Passed</th><td class="mono">${r.passed}</td></tr>
+        <tr><th>Judge</th><td class="mono">${r.judge}</td></tr>
+        <tr><th>Elapsed</th><td class="mono">${r.elapsed_ms} ms</td></tr>
+      </table>
+      <h4>Input</h4>
+      <pre>${(r.input || "").replace(/</g, "&lt;")}</pre>
+      <h4>Actual output</h4>
+      <pre>${(r.actual_output || "").replace(/</g, "&lt;")}</pre>
+      <h4>Judge reasoning</h4>
+      <pre>${(r.reason || "").replace(/</g, "&lt;")}</pre>
+      <h4>Extra</h4>
+      <pre>${JSON.stringify(r.extra || {}, null, 2).replace(/</g, "&lt;")}</pre>
+    `;
+    $("#detail").showModal();
+  }
+});
+
+document.querySelectorAll(".chip").forEach((chip) => {
+  chip.addEventListener("click", () => {
+    document.querySelectorAll(".chip").forEach((c) => c.classList.remove("active"));
+    chip.classList.add("active");
+    activeCategory = chip.dataset.cat;
+    applyFilter();
+  });
+});
+
+$("#target").addEventListener("change", (e) => {
+  activeTarget = e.target.value;
+  applyFilter();
+});
+
+$("#apply-judge").addEventListener("click", applyJudge);
+
+$("#run-all").addEventListener("click", async () => {
+  const visible = [...grid.children].filter((c) => c.style.display !== "none");
+  for (const c of visible) {
+    await runMetric(c.dataset.id);
+  }
+});
+
+(async () => {
+  await loadInfo();
+  await loadMetrics();
+})();
+</script>
+</body>
+</html>
