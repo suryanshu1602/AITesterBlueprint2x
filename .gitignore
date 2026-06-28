@@ -6,6 +6,7 @@
 
 # python
 **/venv/
+**/.venv/
 **/__pycache__/
 *.pyc
 
@@ -23,6 +24,13 @@
 **/.deepeval/
 **/.deepeval-cache/
 **/.pytest_cache/
+
+# RAG runtime artefacts (generated vector store + user uploads)
+**/chroma_db/
+**/data/uploads/
+
+# command code
+.commandcode/
 
 # node
 **/node_modules/

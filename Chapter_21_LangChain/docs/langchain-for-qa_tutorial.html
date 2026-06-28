@@ -1,0 +1,1661 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LangChain for QA Engineers — Field Guide</title>
+<meta name="description" content="Zero to three working QA agents with LangChain: Bug Triage, RCA, and Test Designer.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+/* ============ TOKENS · light, doc-style (Testing Academy) ============ */
+:root{
+  --bg:#f7f4ed;            /* warm paper */
+  --surface:#ffffff;       /* cards */
+  --surface-2:#fbf8f2;     /* diagram / tinted panels */
+  --chip:#f1ece1;          /* inline code / chips */
+  --ink:#1c1a17;           /* near-black warm */
+  --ink-2:#4f4a42;         /* secondary text */
+  --ink-3:#857d70;         /* muted / captions */
+  --copper:#cc6633;        /* brand accent */
+  --copper-ink:#b4541f;    /* copper as text on light */
+  --teal:#1a7c79;          /* brand secondary */
+  --teal-ink:#136561;
+  --amber:#bd8636;
+  --amber-ink:#a76a16;
+  --line:#e6dfd1;          /* warm hairline */
+  --line-2:#efe9dd;
+  /* dark terminal code block kept for contrast */
+  --code-bg:#15181d;
+  --code-bar:#1b1f25;
+  --code-line:#2a2f37;
+  --code-ink:#e8e6e1;
+  --code-dim:#9aa0a6;
+  --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+  --sans:'Inter',system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+  --maxw:880px;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+body{
+  margin:0;background:var(--bg);color:var(--ink);
+  font-family:var(--sans);font-size:17px;line-height:1.65;
+  -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
+}
+a{color:var(--copper-ink);text-decoration:none}
+a:hover{text-decoration:underline}
+::selection{background:rgba(204,102,51,.20);color:#1c1a17}
+
+/* ============ SCROLL PROGRESS ============ */
+#bar{position:fixed;top:0;left:0;height:3px;width:0;z-index:60;
+  background:linear-gradient(90deg,var(--copper),var(--teal))}
+
+/* ============ LAYOUT ============ */
+.layout{display:grid;grid-template-columns:266px 1fr}
+.side{
+  position:sticky;top:0;align-self:start;height:100vh;overflow-y:auto;
+  border-right:1px solid var(--line);background:rgba(247,244,237,.86);
+  backdrop-filter:blur(8px);padding:22px 16px 40px;
+}
+.brand{display:flex;align-items:center;gap:10px;padding:6px 8px 18px;margin-bottom:6px;border-bottom:1px solid var(--line-2)}
+.brand .mark{width:30px;height:30px;border-radius:7px;flex:none;
+  background:linear-gradient(135deg,#cc6633,#9a4a23);
+  display:grid;place-items:center;font-family:var(--mono);font-weight:800;color:#2a160a;font-size:15px}
+.brand .who{font-family:var(--mono);font-size:12px;line-height:1.35}
+.brand .who b{color:var(--ink);font-weight:700;display:block;letter-spacing:.2px}
+.brand .who span{color:var(--ink-3)}
+.nav-h{font-family:var(--mono);font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-3);padding:14px 10px 6px}
+.nav a{display:flex;gap:10px;align-items:baseline;padding:7px 10px;border-radius:7px;
+  color:var(--ink-2);font-size:13.5px;line-height:1.3;transition:background .15s,color .15s}
+.nav a .n{font-family:var(--mono);font-size:11px;color:var(--ink-3);min-width:20px}
+.nav a:hover{background:var(--line-2);color:var(--ink);text-decoration:none}
+.nav a.active{background:rgba(204,102,51,.12);color:var(--copper-ink)}
+.nav a.active .n{color:var(--copper)}
+
+/* ============ MAIN ============ */
+main{min-width:0}
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 28px 120px}
+.prose{max-width:70ch}
+.prose p{margin:0 0 16px}
+.prose ul{margin:0 0 16px;padding-left:18px;list-style:none}
+.prose li{margin:8px 0;position:relative;padding-left:6px}
+.prose li::before{content:"—";position:absolute;left:-18px;color:var(--copper);font-weight:700}
+.prose strong{color:var(--ink);font-weight:650}
+.prose code,.icode{font-family:var(--mono);font-size:.84em;background:var(--chip);
+  border:1px solid var(--line);border-radius:5px;padding:1px 6px;color:var(--copper-ink)}
+
+/* ============ HERO ============ */
+.hero{padding:64px 0 32px;border-bottom:1px solid var(--line)}
+.eyebrow{font-family:var(--mono);font-size:11.5px;letter-spacing:.2em;text-transform:uppercase;
+  color:var(--teal-ink);display:flex;align-items:center;gap:10px;margin-bottom:22px}
+.eyebrow::before{content:"";width:26px;height:1px;background:var(--teal)}
+.hero h1{font-family:var(--sans);font-weight:800;font-size:clamp(34px,5.6vw,60px);
+  line-height:1.04;letter-spacing:-1.2px;margin:0 0 10px;color:var(--ink)}
+.hero h1 .hl{color:var(--copper);font-style:italic;font-weight:800}
+.cursor{display:inline-block;width:.5ch;height:1.0em;background:var(--copper);
+  margin-left:6px;transform:translateY(.12em);animation:blink 1.05s step-end infinite;border-radius:1px}
+@keyframes blink{50%{opacity:0}}
+@media (prefers-reduced-motion:reduce){.cursor{animation:none}}
+.hero .sub{font-size:19px;color:var(--ink-2);max-width:62ch;margin:18px 0 26px}
+.metaline{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:30px}
+.tag{font-family:var(--mono);font-size:12px;color:var(--ink-2);background:var(--surface);
+  border:1px solid var(--line);border-radius:999px;padding:5px 12px}
+.tag b{color:var(--copper-ink);font-weight:700}
+
+/* build cards */
+.builds{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:6px}
+.bcard{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px 16px 18px;
+  position:relative;overflow:hidden;transition:transform .15s ease,box-shadow .15s ease}
+.bcard:hover{transform:translateY(-2px);box-shadow:0 14px 34px -20px rgba(70,46,20,.30)}
+.bcard::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--copper)}
+.bcard:nth-child(2)::before{background:var(--teal)}
+.bcard:nth-child(3)::before{background:var(--amber)}
+.bcard .k{font-family:var(--mono);font-size:11px;color:var(--ink-3);letter-spacing:.1em}
+.bcard h4{margin:6px 0 6px;font-size:16px;font-weight:700;font-family:var(--sans);color:var(--ink)}
+.bcard p{margin:0;font-size:13.5px;color:var(--ink-2);line-height:1.5}
+
+/* ============ SECTIONS ============ */
+.sec{padding:54px 0 8px;scroll-margin-top:24px}
+.sec-head{margin-bottom:24px}
+.kicker{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.level{font-family:var(--mono);font-weight:800;font-size:13px;letter-spacing:.04em;
+  color:#2a160a;background:var(--copper);padding:4px 10px;border-radius:6px}
+.level.t{background:var(--teal);color:#eafffb}
+.level.w{background:var(--amber);color:#2a1c08}
+.kicker .label{font-family:var(--mono);font-size:11.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-3)}
+.sec h2{font-family:var(--sans);font-weight:800;font-size:clamp(25px,3.4vw,34px);
+  line-height:1.14;letter-spacing:-.6px;margin:0;color:var(--ink);display:flex;gap:12px;align-items:baseline}
+.sec h2 .pr{color:var(--copper);font-weight:800;font-family:var(--mono);font-size:.82em}
+.sec h2 em{font-style:italic;color:var(--copper);font-weight:800}
+.sec h3{font-family:var(--sans);font-weight:700;font-size:19px;margin:36px 0 12px;color:var(--ink);
+  display:flex;align-items:center;gap:9px}
+.sec h3::before{content:"#";color:var(--teal);font-weight:800;font-family:var(--mono)}
+.lead{font-size:18.5px;color:var(--ink-2);max-width:68ch;margin:0 0 8px}
+
+/* ============ POINT LIST (why) ============ */
+.points{display:grid;gap:14px;margin:8px 0 8px}
+.point{display:grid;grid-template-columns:44px 1fr;gap:16px;align-items:start;
+  background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px 20px}
+.point .num{font-family:var(--mono);font-weight:800;font-size:20px;color:var(--copper-ink);
+  border:1px solid var(--line);border-radius:9px;width:44px;height:44px;display:grid;place-items:center;background:var(--surface-2)}
+.point h4{margin:2px 0 6px;font-size:17px;font-weight:700;font-family:var(--sans);color:var(--ink)}
+.point p{margin:0;font-size:15px;color:var(--ink-2);line-height:1.55}
+
+/* ============ CALLOUTS ============ */
+.note{display:grid;grid-template-columns:auto 1fr;gap:14px;align-items:start;
+  border:1px solid var(--line);border-left:3px solid var(--teal);
+  background:#f0f6f4;border-radius:10px;padding:14px 18px;margin:20px 0;font-size:14.5px;color:var(--ink-2)}
+.note.warn{border-left-color:var(--amber);background:#fbf3e6}
+.note .ic{font-family:var(--mono);font-weight:800;color:var(--teal-ink);font-size:15px}
+.note.warn .ic{color:var(--amber-ink)}
+.note b{color:var(--ink)}
+
+/* ============ CODE BLOCK (dark terminal on light page) ============ */
+.code{margin:22px 0;border:1px solid var(--line);border-radius:12px;overflow:hidden;
+  background:var(--code-bg);box-shadow:0 18px 44px -28px rgba(40,28,16,.5)}
+.code-top{display:flex;align-items:center;gap:10px;padding:10px 14px;
+  background:var(--code-bar);border-bottom:1px solid var(--code-line)}
+.dots{display:flex;gap:6px}
+.dots i{width:11px;height:11px;border-radius:50%;display:block}
+.dots i:nth-child(1){background:#cc6633}
+.dots i:nth-child(2){background:#d9a05a}
+.dots i:nth-child(3){background:#2aa39f}
+.code-name{font-family:var(--mono);font-size:12.5px;color:var(--code-dim);margin-left:4px}
+.code-name b{color:var(--code-ink)}
+.copy{margin-left:auto;font-family:var(--mono);font-size:11.5px;color:var(--code-dim);
+  background:#23272e;border:1px solid var(--code-line);border-radius:6px;
+  padding:5px 11px;cursor:pointer;transition:all .15s}
+.copy:hover{color:#e8814d;border-color:#cc6633}
+.copy.ok{color:#2aa39f;border-color:#2aa39f}
+.code pre{margin:0;padding:18px 18px 20px;overflow-x:auto}
+.code code{font-family:var(--mono);font-size:13.5px;line-height:1.62;color:var(--code-ink);background:none;border:0;padding:0}
+.code pre::-webkit-scrollbar{height:9px}
+.code pre::-webkit-scrollbar-thumb{background:var(--code-line);border-radius:9px}
+
+/* hljs custom (dark code, restrained, on-brand) */
+.hljs-comment,.hljs-quote{color:#6b7079;font-style:italic}
+.hljs-keyword,.hljs-meta,.hljs-name,.hljs-built_in{color:#e8814d}
+.hljs-string,.hljs-attr,.hljs-symbol,.hljs-bullet,.hljs-meta .hljs-string{color:#3fb0a6}
+.hljs-number,.hljs-literal{color:#d39668}
+.hljs-title,.hljs-title.function_,.hljs-section{color:#ece9e3;font-weight:600}
+.hljs-title.class_,.hljs-type{color:#3fb0a6}
+.hljs-params{color:#cfd2d6}
+.hljs-property{color:#e8e6e1}
+
+/* ============ DIAGRAM ============ */
+.diagram{margin:26px 0;border:1px solid var(--line);border-radius:14px;
+  background:var(--surface-2);padding:22px 20px 14px;overflow:hidden}
+.diagram svg{display:block;width:100%;height:auto}
+.diagram .cap{font-family:var(--mono);font-size:12px;color:var(--ink-3);
+  margin-top:12px;padding-top:12px;border-top:1px solid var(--line-2);text-align:center;letter-spacing:.02em}
+.diagram .cap b{color:var(--ink-2)}
+.d-label{font-family:var(--mono);font-weight:700}
+.d-small{font-family:var(--mono)}
+
+/* ============ TABLE ============ */
+.tbl{margin:22px 0;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--surface)}
+.tbl-scroll{overflow-x:auto}
+.tbl table{width:100%;border-collapse:collapse;font-size:14px}
+.tbl th,.tbl td{text-align:left;padding:11px 14px;border-bottom:1px solid var(--line-2);vertical-align:top;color:var(--ink-2);line-height:1.5}
+.tbl thead th{font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);background:var(--surface-2);font-weight:700}
+.tbl tbody tr:last-child td{border-bottom:0}
+.tbl td:first-child{white-space:nowrap}
+.tbl .m{display:inline-block;font-family:var(--mono);font-weight:800;font-size:11px;letter-spacing:.04em;color:#fff;background:var(--teal);padding:3px 8px;border-radius:5px}
+.tbl .m.post{background:var(--copper)}
+.tbl td code,.tbl th code{font-family:var(--mono);font-size:.92em;background:var(--chip);border:1px solid var(--line);border-radius:5px;padding:1px 6px;color:var(--copper-ink)}
+@media (max-width:640px){.tbl table{min-width:560px}}
+.cmp td:first-child{font-weight:650;color:var(--ink);white-space:normal}
+.cmp th:nth-child(2),.cmp td:nth-child(2){border-left:2px solid rgba(204,102,51,.30)}
+.cmp th:nth-child(3),.cmp td:nth-child(3){border-left:2px solid rgba(26,124,121,.30)}
+
+/* divider */
+.hr{height:1px;background:var(--line);margin:46px 0;border:0}
+
+/* footer */
+footer{border-top:1px solid var(--line);margin-top:60px;padding:30px 0 10px;
+  font-family:var(--mono);font-size:12.5px;color:var(--ink-3)}
+footer b{color:var(--ink-2)}
+
+/* ============ MOBILE ============ */
+.menu-btn{display:none}
+@media (max-width:900px){
+  .layout{grid-template-columns:1fr}
+  .side{position:fixed;z-index:50;width:280px;left:0;top:0;transform:translateX(-105%);
+    transition:transform .22s ease;box-shadow:20px 0 60px -24px rgba(40,28,16,.35)}
+  .side.open{transform:none}
+  .menu-btn{display:flex;align-items:center;gap:8px;position:fixed;z-index:55;top:14px;left:14px;
+    font-family:var(--mono);font-size:12px;color:var(--ink);background:var(--surface);
+    border:1px solid var(--line);border-radius:9px;padding:9px 13px;cursor:pointer;box-shadow:0 6px 18px -10px rgba(40,28,16,.3)}
+  .scrim{position:fixed;inset:0;background:rgba(40,30,18,.32);z-index:40;opacity:0;pointer-events:none;transition:opacity .2s}
+  .scrim.show{opacity:1;pointer-events:auto}
+  .wrap{padding:0 18px 100px}
+  .hero{padding:78px 0 28px}
+  .builds{grid-template-columns:1fr}
+  body{font-size:16px}
+}
+@media (min-width:901px){.menu-btn,.scrim{display:none}}
+
+</style>
+</head>
+<body>
+<div id="bar"></div>
+
+<!-- shared SVG markers -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <marker id="mk-copper" markerWidth="9" markerHeight="9" refX="7" refY="3.2" orient="auto">
+      <path d="M0,0 L7,3.2 L0,6.4 Z" fill="#b4541f"/></marker>
+    <marker id="mk-teal" markerWidth="9" markerHeight="9" refX="7" refY="3.2" orient="auto">
+      <path d="M0,0 L7,3.2 L0,6.4 Z" fill="#15706d"/></marker>
+    <marker id="mk-dim" markerWidth="9" markerHeight="9" refX="7" refY="3.2" orient="auto">
+      <path d="M0,0 L7,3.2 L0,6.4 Z" fill="#8a8378"/></marker>
+    <marker id="mk-amber" markerWidth="9" markerHeight="9" refX="7" refY="3.2" orient="auto">
+      <path d="M0,0 L7,3.2 L0,6.4 Z" fill="#a76a16"/></marker>
+  </defs>
+</svg>
+
+<button class="menu-btn" id="menuBtn" aria-label="Open navigation">☰ Contents</button>
+<div class="scrim" id="scrim"></div>
+
+<div class="layout">
+  <!-- SIDEBAR -->
+  <aside class="side" id="side">
+    <div class="brand">
+      <div class="mark">TA</div>
+      <div class="who"><b>The Testing Academy</b><span>LangChain field guide</span></div>
+    </div>
+    <nav class="nav">
+      <div class="nav-h">Foundations</div>
+      <a href="#overview"><span class="n">00</span><span>Overview</span></a>
+      <a href="#what"><span class="n">·</span><span>What is LangChain</span></a>
+      <a href="#why"><span class="n">·</span><span>Why it fits QA</span></a>
+      <a href="#arch"><span class="n">·</span><span>The mental model</span></a>
+      <a href="#setup"><span class="n">·</span><span>Install &amp; setup</span></a>
+      <div class="nav-h">Build it up</div>
+      <a href="#l0"><span class="n">L0</span><span>First LLM call</span></a>
+      <a href="#l1"><span class="n">L1</span><span>Your first chain</span></a>
+      <a href="#l2"><span class="n">L2</span><span>Your first agent</span></a>
+      <a href="#l3"><span class="n">L3</span><span>Many agents</span></a>
+      <div class="nav-h">QA agents</div>
+      <a href="#p1"><span class="n">P1</span><span>Bug Triage agent</span></a>
+      <a href="#p2"><span class="n">P2</span><span>RCA agent</span></a>
+      <a href="#p3"><span class="n">P3</span><span>Test Designer agent</span></a>
+      <a href="#capstone"><span class="n">★</span><span>The QA Copilot</span></a>
+      <div class="nav-h">Ship to prod</div>
+      <a href="#deploy"><span class="n">VPS</span><span>Deploy &amp; serve 24×7</span></a>
+      <a href="#endpoints"><span class="n">API</span><span>Endpoint map</span></a>
+      <a href="#next"><span class="n">→</span><span>Where to go next</span></a>
+    </nav>
+  </aside>
+
+  <!-- MAIN -->
+  <main>
+    <div class="wrap">
+
+      <!-- HERO -->
+      <header class="hero" id="overview">
+        <div class="eyebrow">Hands-on field guide · Python · Groq + Llama 3.3</div>
+        <h1>LangChain for <span class="hl">QA</span> Engineers<span class="cursor"></span></h1>
+        <p class="sub">Calling an LLM is one line. Building something a QA team can actually rely on — typed output, tool use, multi-step reasoning, swappable models — is the hard part. That hard part is what LangChain handles. We start from zero and finish with three agents you can wire into your own pipeline.</p>
+        <div class="metaline">
+          <span class="tag"><b>Goal:</b> 0 → 3 working agents</span>
+          <span class="tag"><b>Level:</b> beginner-friendly</span>
+          <span class="tag"><b>Copy-ready</b> code throughout</span>
+        </div>
+        <div class="builds">
+          <div class="bcard"><div class="k">PROJECT 01</div><h4>Bug Triage</h4><p>Raw report in → severity, priority, component, owner, dupe-check out. Typed and ready for Jira.</p></div>
+          <div class="bcard"><div class="k">PROJECT 02</div><h4>RCA Agent</h4><p>Pulls logs, recent commits and service health like you would, then names the likely root cause.</p></div>
+          <div class="bcard"><div class="k">PROJECT 03</div><h4>Test Designer</h4><p>A user story becomes a scoped test plan plus concrete, runnable test cases.</p></div>
+        </div>
+      </header>
+
+      <!-- WHAT IS LANGCHAIN -->
+      <section class="sec" id="what">
+        <div class="sec-head">
+          <div class="kicker"><span class="label">Foundations</span></div>
+          <h2><span class="pr">❯</span> What is <em>LangChain</em>?</h2>
+        </div>
+        <p class="lead">LangChain is an open-source framework for building applications on top of large language models. It hands you a small set of composable building blocks — and a clean way to wire them together — so you stop writing throwaway glue code around raw API calls.</p>
+
+        <h3>The objective of this guide</h3>
+        <p class="prose">Take you from "I've never touched LangChain" to three running QA agents. Along the way every building block is introduced once, in plain terms, with code you can paste and run. No abstract theory you can't use the same day.</p>
+
+        <h3>Why the framework exists</h3>
+        <div class="prose">
+          <p>Hitting an LLM endpoint directly is trivial. The trouble starts the moment you want it to be <strong>dependable</strong>:</p>
+          <ul>
+            <li>You need the model to return <strong>structured data</strong>, not a paragraph you have to parse by hand.</li>
+            <li>You want it to <strong>call your tools</strong> — Jira, logs, CI, Git — and act on what it finds.</li>
+            <li>You want to <strong>swap the model</strong> (Groq today, OpenAI tomorrow) without rewriting everything.</li>
+            <li>You want <strong>multi-step reasoning</strong>: look something up, decide, look up more, then answer.</li>
+          </ul>
+          <p>LangChain is the plumbing for exactly that. You think in blocks — <span class="icode">Prompt</span>, <span class="icode">Model</span>, <span class="icode">Parser</span>, <span class="icode">Tool</span>, <span class="icode">Agent</span> — and snap them together.</p>
+        </div>
+      </section>
+
+      <!-- WHY QA -->
+      <section class="sec" id="why">
+        <div class="sec-head">
+          <div class="kicker"><span class="label">Foundations</span></div>
+          <h2><span class="pr">❯</span> Why it fits <em>QA</em></h2>
+        </div>
+        <p class="lead">Three reasons this matters specifically for testers — not generic AI hype.</p>
+        <div class="points">
+          <div class="point">
+            <div class="num">1</div>
+            <div>
+              <h4>Glue without the glue code</h4>
+              <p>LangChain standardises prompts, models, tools and parsers behind one interface. Your triage or RCA logic stops being tied to a single vendor's SDK, so it outlives any one model. Change <span class="icode">ChatGroq</span> to <span class="icode">ChatOpenAI</span> and the rest of your pipeline doesn't flinch.</p>
+            </div>
+          </div>
+          <div class="point">
+            <div class="num">2</div>
+            <div>
+              <h4>Structured output you can trust</h4>
+              <p><span class="icode">with_structured_output()</span> turns a messy model reply into a typed object — <span class="icode">severity</span>, <span class="icode">priority</span>, test <span class="icode">steps</span> — that you push straight into Jira, TestRail or Xray. No regex-scraping the model's prose and praying the format held.</p>
+            </div>
+          </div>
+          <div class="point">
+            <div class="num">3</div>
+            <div>
+              <h4>Your test infra, callable by an LLM</h4>
+              <p>Wrap Jira, Playwright reports, CI logs and Git as <strong>tools</strong>, and an agent can investigate a failure the way you would — pull the stack trace, check what shipped, look at error rates — instead of you doing it by hand at 2am. The agent does the legwork; you make the call.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ARCHITECTURE / MENTAL MODEL -->
+      <section class="sec" id="arch">
+        <div class="sec-head">
+          <div class="kicker"><span class="label">Foundations</span></div>
+          <h2><span class="pr">❯</span> The mental <em>model</em></h2>
+        </div>
+        <p class="lead">Hold these five blocks in your head and the whole framework clicks. Everything else is a variation on them.</p>
+
+        <div class="diagram">
+          <svg viewBox="0 0 820 360" role="img" aria-label="Diagram: LangChain building blocks. A Prompt feeds a Model, which feeds an Output Parser. A Chain wraps these in order. An Agent adds a reasoning loop that can call Tools.">
+            <!-- title strip -->
+            <text x="20" y="26" class="d-small" fill="#8a8378" font-size="12" letter-spacing="2">BUILDING BLOCKS</text>
+
+            <!-- Prompt -->
+            <rect x="24" y="60" width="180" height="92" rx="12" fill="#ffffff" stroke="#e3ddd0"/>
+            <rect x="24" y="60" width="180" height="92" rx="12" fill="none" stroke="#cc6633" stroke-opacity=".5"/>
+            <text x="114" y="92" text-anchor="middle" class="d-label" fill="#1c1a17" font-size="15">Prompt</text>
+            <text x="114" y="114" text-anchor="middle" class="d-small" fill="#6f675c" font-size="11.5">what you ask,</text>
+            <text x="114" y="130" text-anchor="middle" class="d-small" fill="#6f675c" font-size="11.5">with variables</text>
+
+            <!-- Model -->
+            <rect x="320" y="60" width="180" height="92" rx="12" fill="#ffffff" stroke="#e3ddd0"/>
+            <rect x="320" y="60" width="180" height="92" rx="12" fill="none" stroke="#cc6633" stroke-opacity=".5"/>
+            <text x="410" y="92" text-anchor="middle" class="d-label" fill="#1c1a17" font-size="15">Model</text>
+            <text x="410" y="114" text-anchor="middle" class="d-small" fill="#6f675c" font-size="11.5">the brain</text>
+            <text x="410" y="130" text-anchor="middle" class="d-small" fill="#6f675c" font-size="11.5">(the LLM)</text>
+
+            <!-- Parser -->
+            <rect x="616" y="60" width="180" height="92" rx="12" fill="#ffffff" stroke="#e3ddd0"/>
+            <rect x="616" y="60" width="180" height="92" rx="12" fill="none" stroke="#cc6633" stroke-opacity=".5"/>
+            <text x="706" y="92" text-anchor="middle" class="d-label" fill="#1c1a17" font-size="15">Output Parser</text>
+            <text x="706" y="114" text-anchor="middle" class="d-small" fill="#6f675c" font-size="11.5">clean, typed</text>
+            <text x="706" y="130" text-anchor="middle" class="d-small" fill="#6f675c" font-size="11.5">result</text>
+
+            <!-- arrows between top blocks -->
+            <line x1="206" y1="106" x2="316" y2="106" stroke="#cc6633" stroke-width="2" marker-end="url(#mk-copper)"/>
+            <line x1="502" y1="106" x2="612" y2="106" stroke="#cc6633" stroke-width="2" marker-end="url(#mk-copper)"/>
+
+            <!-- Chain wrapper -->
+            <rect x="10" y="44" width="800" height="126" rx="16" fill="none" stroke="#1a7c79" stroke-width="1.4" stroke-dasharray="6 5" opacity=".75"/>
+            <text x="800" y="40" text-anchor="end" class="d-label" fill="#15706d" font-size="13">CHAIN  =  blocks wired in order  (  prompt | model | parser  )</text>
+
+            <!-- Agent loop -->
+            <rect x="190" y="214" width="440" height="118" rx="14" fill="#ffffff" stroke="#e3ddd0"/>
+            <text x="410" y="240" text-anchor="middle" class="d-label" fill="#b4541f" font-size="14">AGENT  =  a chain that can decide &amp; act</text>
+
+            <!-- loop nodes -->
+            <text x="262" y="284" text-anchor="middle" class="d-small" fill="#1c1a17" font-size="12.5">Reason</text>
+            <text x="410" y="284" text-anchor="middle" class="d-small" fill="#1c1a17" font-size="12.5">Call Tool</text>
+            <text x="558" y="284" text-anchor="middle" class="d-small" fill="#1c1a17" font-size="12.5">Observe</text>
+            <line x1="292" y1="280" x2="362" y2="280" stroke="#1a7c79" stroke-width="2" marker-end="url(#mk-teal)"/>
+            <line x1="452" y1="280" x2="520" y2="280" stroke="#1a7c79" stroke-width="2" marker-end="url(#mk-teal)"/>
+            <path d="M558,296 C558,320 262,320 262,296" fill="none" stroke="#1a7c79" stroke-width="2" marker-end="url(#mk-teal)"/>
+            <text x="410" y="326" text-anchor="middle" class="d-small" fill="#8a8378" font-size="10.5">loop until it has the answer</text>
+
+            <!-- tools -->
+            <rect x="666" y="232" width="138" height="82" rx="11" fill="#f1ece1" stroke="#e3ddd0"/>
+            <text x="735" y="258" text-anchor="middle" class="d-label" fill="#1c1a17" font-size="13">Tools</text>
+            <text x="735" y="278" text-anchor="middle" class="d-small" fill="#6f675c" font-size="11">Jira · logs</text>
+            <text x="735" y="294" text-anchor="middle" class="d-small" fill="#6f675c" font-size="11">CI · Git</text>
+            <line x1="630" y1="273" x2="662" y2="273" stroke="#1a7c79" stroke-width="2" marker-end="url(#mk-teal)"/>
+          </svg>
+          <div class="cap"><b>The whole framework in one picture.</b> Chains run a fixed pipeline; agents add a reasoning loop with tools.</div>
+        </div>
+
+        <div class="note">
+          <span class="ic">i</span>
+          <div>One-line summary to keep: a <b>chain</b> always runs the same steps in order. An <b>agent</b> is a chain that's allowed to think, pick a tool, look at the result, and loop — until it decides it's done.</div>
+        </div>
+      </section>
+
+      <!-- SETUP -->
+      <section class="sec" id="setup">
+        <div class="sec-head">
+          <div class="kicker"><span class="label">Foundations</span></div>
+          <h2><span class="pr">❯</span> Install &amp; <em>setup</em></h2>
+        </div>
+        <p class="lead">Two minutes of setup. A clean virtual environment, a handful of packages, and one free API key.</p>
+
+        <h3>Packages</h3>
+        <p class="prose">We use <strong>Groq</strong> as the model provider because it's fast and free to start. Everything here ports to OpenAI or Anthropic by changing one import.</p>
+        <div class="code">
+          <div class="code-top"><div class="dots"><i></i><i></i><i></i></div><span class="code-name">terminal · <b>setup.sh</b></span><button class="copy">copy</button></div>
+          <pre><code class="language-bash"># 1. Clean, isolated environment
+python -m venv .venv
+source .venv/bin/activate          # Windows: .venv\Scripts\activate
+
+# 2. Core LangChain
+pip install langchain langchain-core langchain-community
+
+# 3. Our model provider (swap this later for openai / anthropic)
+pip install langchain-groq
+
+# 4. Helpers: typed output + reading the .env file + multi-agent graphs
+pip install pydantic python-dotenv langgraph</code></pre>
+        </div>
+
+        <h3>The API key</h3>
+        <p class="prose">Grab a free key from <a href="https://console.groq.com" target="_blank" rel="noopener">console.groq.com</a>. Never hard-code it. Put it in a <span class="icode">.env</span> file next to your scripts and load it at runtime.</p>
+        <div class="code">
+          <div class="code-top"><div class="dots"><i></i><i></i><i></i></div><span class="code-name">file · <b>.env</b></span><button class="copy">copy</button></div>
+          <pre><code class="language-bash">GROQ_API_KEY=gsk_your_real_key_goes_here</code></pre>
+        </div>
+        <div class="note warn">
+          <span class="ic">!</span>
+          <div>Add <b>.env</b> to your <b>.gitignore</b> before your first commit. A leaked key on GitHub gets scraped within minutes.</div>
+        </div>
+      </section>
+
+      <!-- LEVEL 0 -->
+      <section class="sec" id="l0">
+        <div class="sec-head">
+          <div class="kicker"><span class="level">LEVEL 00</span><span class="label">First contact</span></div>
+          <h2><span class="pr">❯</span> Your first <em>LLM call</em></h2>
+        </div>
+        <p class="lead">Before chains, agents, or any QA logic — just talk to the model and get text back. If this runs, your setup is correct.</p>
+        <div class="code">
+          <div class="code-top"><div class="dots"><i></i><i></i><i></i></div><span class="code-name">python · <b>level_0_hello.py</b></span><button class="copy">copy</button></div>
+          <pre><code class="language-python">from dotenv import load_dotenv
+from langchain_groq import ChatGroq
+
+load_dotenv()                       # reads GROQ_API_KEY from .env
+
+# The model object. temperature=0 -> consistent, deterministic answers.
+llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0)
+
+# .invoke() runs it once and returns a message object.
+response = llm.invoke("In one line: what makes an automated test 'flaky'?")
+
+print(response.content)</code></pre>
+        </div>
+        <div class="prose">
+          <p>Run it: <span class="icode">python level_0_hello.py</span>. You get a one-line answer about non-determinism in tests. Two things to notice:</p>
+          <ul>
+            <li><span class="icode">ChatGroq(...)</span> is the <strong>Model</strong> block from the mental model — interchangeable with any other provider.</li>
+            <li><span class="icode">.invoke()</span> is how you run <em>any</em> LangChain block. Chains and agents use the exact same method. Learn it once.</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- LEVEL 1 -->
+      <section class="sec" id="l1">
+        <div class="sec-head">
+          <div class="kicker"><span class="level">LEVEL 01</span><span class="label">Composition</span></div>
+          <h2><span class="pr">❯</span> Your first <em>chain</em></h2>
+        </div>
+        <p class="lead">A raw call is fine for a demo. Real work needs a reusable template, the model, and clean output — wired together. That wiring is a <em>chain</em>.</p>
+
+        <div class="diagram">
+          <svg viewBox="0 0 820 200" role="img" aria-label="Diagram: anatomy of a chain. An input dictionary flows into a prompt template, then the model, then an output parser, producing a clean string. The blocks are joined by the pipe operator.">
+            <text x="20" y="24" class="d-small" fill="#8a8378" font-size="12" letter-spacing="2">ANATOMY OF A CHAIN</text>
+
+            <!-- nodes -->
+            <g font-size="12.5">
+              <rect x="14" y="58" width="120" height="76" rx="11" fill="#f1ece1" stroke="#e3ddd0"/>
+              <text x="74" y="90" text-anchor="middle" class="d-label" fill="#6f675c" font-size="11">INPUT</text>
+              <text x="74" y="110" text-anchor="middle" class="d-small" fill="#1c1a17">{"bug": …}</text>
+
+              <rect x="184" y="58" width="140" height="76" rx="11" fill="#ffffff" stroke="#cc6633" stroke-opacity=".55"/>
+              <text x="254" y="86" text-anchor="middle" class="d-label" fill="#1c1a17">Prompt</text>
+              <text x="254" y="103" text-anchor="middle" class="d-small" fill="#6f675c" font-size="11">Template</text>
+              <text x="254" y="120" text-anchor="middle" class="d-small" fill="#8a8378" font-size="10">fills variables</text>
+
+              <rect x="374" y="58" width="140" height="76" rx="11" fill="#ffffff" stroke="#cc6633" stroke-opacity=".55"/>
+              <text x="444" y="90" text-anchor="middle" class="d-label" fill="#1c1a17">Model</text>
+              <text x="444" y="110" text-anchor="middle" class="d-small" fill="#8a8378" font-size="10">ChatGroq</text>
+
+              <rect x="564" y="58" width="150" height="76" rx="11" fill="#ffffff" stroke="#cc6633" stroke-opacity=".55"/>
+              <text x="639" y="86" text-anchor="middle" class="d-label" fill="#1c1a17">Output</text>
+              <text x="639" y="103" text-anchor="middle" class="d-small" fill="#6f675c" font-size="11">Parser</text>
+              <text x="639" y="120" text-anchor="middle" class="d-small" fill="#8a8378" font-size="10">str / object</text>
+
+              <rect x="760" y="70" width="52" height="52" rx="11" fill="#f1ece1" stroke="#1a7c79" stroke-opacity=".6"/>
+              <text x="786" y="100" text-anchor="middle" class="d-label" fill="#15706d" font-size="11">DONE</text>
+            </g>
+
+            <!-- pipe arrows -->
+            <g>
+              <line x1="134" y1="96" x2="180" y2="96" stroke="#cc6633" stroke-width="2" marker-end="url(#mk-copper)"/>
+              <line x1="324" y1="96" x2="370" y2="96" stroke="#cc6633" stroke-width="2" marker-end="url(#mk-copper)"/>
+              <line x1="514" y1="96" x2="560" y2="96" stroke="#cc6633" stroke-width="2" marker-end="url(#mk-copper)"/>
+              <line x1="714" y1="96" x2="756" y2="96" stroke="#1a7c79" stroke-width="2" marker-end="url(#mk-teal)"/>
+              <text x="157" y="50" text-anchor="middle" class="d-label" fill="#b4541f" font-size="15">|</text>
+              <text x="347" y="50" text-anchor="middle" class="d-label" fill="#b4541f" font-size="15">|</text>
+              <text x="537" y="50" text-anchor="middle" class="d-label" fill="#b4541f" font-size="15">|</text>
+            </g>
+            <text x="410" y="174" text-anchor="middle" class="d-small" fill="#8a8378" font-size="11.5">chain = prompt | model | parser  — the pipe sends each block's output into the next</text>
+          </svg>
+          <div class="cap"><b>LCEL — the pipe operator.</b> The same <span style="font-family:var(--mono);color:#b4541f">|</span> you know from the shell, wiring blocks left to right.</div>
+        </div>
+
+        <div class="code">
+          <div class="code-top"><div class="dots"><i></i><i></i><i></i></div><span class="code-name">python · <b>level_1_chain.py</b></span><button class="copy">copy</button></div>
+          <pre><code class="language-python">from dotenv import load_dotenv
+from langchain_groq import ChatGroq
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.output_parsers import StrOutputParser
+
+load_dotenv()
+
+llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0)
+
+# A reusable template. {bug} is filled in at run time.
+prompt = ChatPromptTemplate.from_messages([
+    ("system", "You are a senior SDET. Be concrete and terse."),
+    ("human", "Summarise this bug in one line, then give a likely "
+              "root-cause guess:\n\n{bug}"),
+])
+
+# Wire it together with the pipe. This is LCEL.
+chain = prompt | llm | StrOutputParser()
+
+print(chain.invoke({
+    "bug": "Checkout 'Pay' button does nothing on Safari 17. "
+           "Works on Chrome. No console error."
+}))</code></pre>
+        </div>
+        <div class="prose">
+          <p>What each piece buys you:</p>
+          <ul>
+            <li><strong>ChatPromptTemplate</strong> — your prompt becomes reusable. Same template, different <span class="icode">{bug}</span> every call. No string-concatenation mess.</li>
+            <li><strong>The pipe <span class="icode">|</span></strong> — this is <em>LCEL</em> (LangChain Expression Language). It reads left to right: prompt's output feeds the model, the model's output feeds the parser.</li>
+            <li><strong>StrOutputParser</strong> — pulls the plain string out of the model's message object so you get text, not <span class="icode">response.content</span> boilerplate.</li>
+          </ul>
+        </div>
+        <div class="note">
+          <span class="ic">i</span>
+          <div>This chain is already production-shaped. It's the same pattern the Bug Triage and Test Designer agents use later — they just swap <b>StrOutputParser</b> for a typed parser.</div>
+        </div>
+      </section>
+
+      <!-- LEVEL 2 -->
+      <section class="sec" id="l2">
+        <div class="sec-head">
+          <div class="kicker"><span class="level">LEVEL 02</span><span class="label">Reasoning + action</span></div>
+          <h2><span class="pr">❯</span> Your first <em>agent</em></h2>
+        </div>
+        <p class="lead">A chain runs a fixed pipeline. An <strong>agent</strong> can decide it needs data, fetch it with a tool, look at the result, and only then answer. This is the leap that makes LLMs useful for real QA work.</p>
+
+        <h3>The agent loop, in one picture</h3>
+        <div class="diagram">
+          <svg viewBox="0 0 820 320" role="img" aria-label="Diagram: the ReAct agent loop. A goal enters the LLM, which reasons and either calls a tool or returns a final answer. Tools return an observation back to the LLM, repeating until done.">
+            <text x="20" y="24" class="d-small" fill="#8a8378" font-size="12" letter-spacing="2">THE AGENT LOOP  ·  REASON → ACT → OBSERVE</text>
+
+            <!-- Goal -->
+            <rect x="20" y="128" width="120" height="64" rx="11" fill="#f1ece1" stroke="#e3ddd0"/>
+            <text x="80" y="156" text-anchor="middle" class="d-label" fill="#6f675c" font-size="11">GOAL</text>
+            <text x="80" y="174" text-anchor="middle" class="d-small" fill="#1c1a17" font-size="11">"Is TC-101 flaky?"</text>
+            <line x1="140" y1="160" x2="206" y2="160" stroke="#cc6633" stroke-width="2" marker-end="url(#mk-copper)"/>
+
+            <!-- LLM core -->
+            <rect x="210" y="108" width="200" height="104" rx="14" fill="#ffffff" stroke="#cc6633" stroke-opacity=".6"/>
+            <text x="310" y="150" text-anchor="middle" class="d-label" fill="#b4541f" font-size="15">LLM reasons</text>
+            <text x="310" y="172" text-anchor="middle" class="d-small" fill="#6f675c" font-size="11.5">"I need the test history</text>
+            <text x="310" y="188" text-anchor="middle" class="d-small" fill="#6f675c" font-size="11.5">→ call a tool"</text>
+
+            <!-- Tools -->
+            <rect x="300" y="252" width="220" height="56" rx="11" fill="#f1ece1" stroke="#1a7c79" stroke-opacity=".55"/>
+            <text x="410" y="278" text-anchor="middle" class="d-label" fill="#15706d" font-size="13">TOOL runs</text>
+            <text x="410" y="296" text-anchor="middle" class="d-small" fill="#6f675c" font-size="11">get_test_history("TC-101")</text>
+
+            <!-- action down -->
+            <path d="M330,212 L350,248" fill="none" stroke="#cc6633" stroke-width="2" marker-end="url(#mk-copper)"/>
+            <text x="300" y="236" text-anchor="end" class="d-small" fill="#b4541f" font-size="11">Action</text>
+            <!-- observation up -->
+            <path d="M470,252 L380,214" fill="none" stroke="#1a7c79" stroke-width="2" marker-end="url(#mk-teal)"/>
+            <text x="500" y="238" text-anchor="start" class="d-small" fill="#15706d" font-size="11">Observation ↺</text>
+
+            <!-- final answer -->
+            <rect x="620" y="108" width="180" height="104" rx="14" fill="#ffffff" stroke="#e3ddd0"/>
+            <text x="710" y="150" text-anchor="middle" class="d-label" fill="#1c1a17" font-size="14">Final answer</text>
+            <text x="710" y="172" text-anchor="middle" class="d-small" fill="#6f675c" font-size="11">"Yes — failed 3 of</text>
+            <text x="710" y="188" text-anchor="middle" class="d-small" fill="#6f675c" font-size="11">last 5 runs."</text>
+            <line x1="410" y1="120" x2="616" y2="120" stroke="#1a7c79" stroke-width="2" marker-end="url(#mk-teal)"/>
+            <text x="513" y="112" text-anchor="middle" class="d-small" fill="#8a8378" font-size="10.5">when it has enough → exit loop</text>
+          </svg>
+          <div class="cap"><b>Reason → Act → Observe, repeat.</b> The model keeps looping through tools until it can answer — you don't script the steps.</div>
+        </div>
+
+        <h3>The code</h3>
+        <p class="prose">A <strong>tool</strong> is just a Python function with the <span class="icode">@tool</span> decorator and a clear docstring. The docstring is how the model knows what the tool does and when to use it — write it like a teammate will read it.</p>
+        <div class="code">
+          <div class="code-top"><div class="dots"><i></i><i></i><i></i></div><span class="code-name">python · <b>level_2_agent.py</b></span><button class="copy">copy</button></div>
+          <pre><code class="language-python">from dotenv import load_dotenv
+from langchain_groq import ChatGroq
+from langchain_core.tools import tool
+from langchain_core.prompts import ChatPromptTemplate
+from langchain.agents import create_tool_calling_agent, AgentExecutor
+
+load_dotenv()
+
+# 1. A tool = a function the LLM is allowed to call.
+#    The docstring tells the model what it does.
+@tool
+def get_test_history(test_id: str) -> str:
+    """Return the recent pass/fail history for a given test ID."""
+    fake_db = {
+        "TC-101": "FAIL, PASS, FAIL, FAIL, PASS",
+        "TC-102": "PASS, PASS, PASS, PASS, PASS",
+    }
+    return fake_db.get(test_id, "No history found.")
+
+llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0)
+tools = [get_test_history]
+
+# 2. The prompt needs a slot for the agent's running thoughts.
+prompt = ChatPromptTemplate.from_messages([
+    ("system", "You are a QA assistant. Use tools when you need data."),
+    ("human", "{input}"),
+    ("placeholder", "{agent_scratchpad}"),   # the agent's working memory
+])
+
+# 3. Build the agent and an executor to actually run the loop.
+agent = create_tool_calling_agent(llm, tools, prompt)
+executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
+
+executor.invoke({"input": "Is test TC-101 flaky? Explain why."})</code></pre>
+        </div>
+        <div class="prose">
+          <p>With <span class="icode">verbose=True</span> you'll watch it work in the console: the model decides to call <span class="icode">get_test_history</span>, reads back the failure pattern, then concludes the test is flaky. You never wrote "if X then look up history" — the agent figured out the step itself.</p>
+        </div>
+        <div class="note">
+          <span class="ic">i</span>
+          <div><b>agent_scratchpad</b> is where the loop lives — each thought, tool call, and observation gets appended there so the model can see what it has already tried. Leave it in; the agent won't run without it.</div>
+        </div>
+      </section>
+
+      <!-- LEVEL 3 -->
+      <section class="sec" id="l3">
+        <div class="sec-head">
+          <div class="kicker"><span class="level t">LEVEL 03</span><span class="label">Scaling out</span></div>
+          <h2><span class="pr">❯</span> Many <em>agents</em>, one front door</h2>
+        </div>
+        <p class="lead">One agent that tries to do everything gets vague and unreliable. The fix is the same as in a real QA org: small, specialised agents, and a <strong>supervisor</strong> that routes each request to the right one.</p>
+
+        <div class="diagram">
+          <svg viewBox="0 0 820 320" role="img" aria-label="Diagram: a supervisor routes an incoming request to one of three specialist agents — Bug Triage, RCA, or Test Designer — each backed by a shared model and tools.">
+            <text x="20" y="24" class="d-small" fill="#8a8378" font-size="12" letter-spacing="2">SUPERVISOR PATTERN</text>
+
+            <!-- request -->
+            <rect x="330" y="42" width="160" height="50" rx="11" fill="#f1ece1" stroke="#e3ddd0"/>
+            <text x="410" y="72" text-anchor="middle" class="d-small" fill="#1c1a17" font-size="12">incoming request</text>
+
+            <!-- supervisor -->
+            <rect x="300" y="118" width="220" height="58" rx="12" fill="#ffffff" stroke="#cc6633" stroke-opacity=".6"/>
+            <text x="410" y="143" text-anchor="middle" class="d-label" fill="#b4541f" font-size="14">Supervisor / Router</text>
+            <text x="410" y="162" text-anchor="middle" class="d-small" fill="#6f675c" font-size="11">classifies intent → dispatches</text>
+            <line x1="410" y1="92" x2="410" y2="114" stroke="#cc6633" stroke-width="2" marker-end="url(#mk-copper)"/>
+
+            <!-- three agents -->
+            <g>
+              <rect x="40" y="216" width="220" height="62" rx="11" fill="#f1ece1" stroke="#cc6633" stroke-opacity=".45"/>
+              <text x="150" y="242" text-anchor="middle" class="d-label" fill="#1c1a17" font-size="13">Bug Triage</text>
+              <text x="150" y="262" text-anchor="middle" class="d-small" fill="#6f675c" font-size="10.5">typed classification</text>
+
+              <rect x="300" y="216" width="220" height="62" rx="11" fill="#f1ece1" stroke="#1a7c79" stroke-opacity=".45"/>
+              <text x="410" y="242" text-anchor="middle" class="d-label" fill="#1c1a17" font-size="13">RCA Agent</text>
+              <text x="410" y="262" text-anchor="middle" class="d-small" fill="#6f675c" font-size="10.5">tools + evidence</text>
+
+              <rect x="560" y="216" width="220" height="62" rx="11" fill="#f1ece1" stroke="#bd8636" stroke-opacity=".45"/>
+              <text x="670" y="242" text-anchor="middle" class="d-label" fill="#1c1a17" font-size="13">Test Designer</text>
+              <text x="670" y="262" text-anchor="middle" class="d-small" fill="#6f675c" font-size="10.5">plan + cases</text>
+            </g>
+
+            <!-- routes -->
+            <path d="M340,176 L160,212" fill="none" stroke="#cc6633" stroke-width="1.8" marker-end="url(#mk-copper)"/>
+            <path d="M410,176 L410,212" fill="none" stroke="#1a7c79" stroke-width="1.8" marker-end="url(#mk-teal)"/>
+            <path d="M480,176 L660,212" fill="none" stroke="#bd8636" stroke-width="1.8" marker-end="url(#mk-dim)"/>
+            <text x="245" y="196" text-anchor="middle" class="d-small" fill="#8a8378" font-size="10">TRIAGE</text>
+            <text x="430" y="200" text-anchor="middle" class="d-small" fill="#8a8378" font-size="10">RCA</text>
+            <text x="575" y="196" text-anchor="middle" class="d-small" fill="#8a8378" font-size="10">DESIGN</text>
+          </svg>
+          <div class="cap"><b>One front door, specialist workers behind it.</b> Each agent stays small and sharp; the router decides who handles what.</div>
+        </div>
+
+        <p class="prose">The simplest supervisor is a tiny classification chain plus a dispatch table. No new concepts — just the chain you already built, used to pick a destination.</p>
+        <div class="code">
+          <div class="code-top"><div class="dots"><i></i><i></i><i></i></div><span class="code-name">python · <b>router.py</b> (the idea)</span><button class="copy">copy</button></div>
+          <pre><code class="language-python">from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.output_parsers import StrOutputParser
+
+# A classifier chain: request in, one label out.
+route_prompt = ChatPromptTemplate.from_messages([
+    ("system", "Classify the request into exactly one label: "
+               "TRIAGE, RCA, or DESIGN. Reply with the label only."),
+    ("human", "{input}"),
+])
+router = route_prompt | llm | StrOutputParser()
+
+def dispatch(request: str):
+    label = router.invoke({"input": request}).strip().upper()
+    if "TRIAGE" in label: return triage_chain.invoke({"report": request})
+    if "DESIGN" in label: return design_chain.invoke({"story": request})
+    if "RCA"    in label: return rca_executor.invoke({"input": request})
+    return "Could not route the request."</code></pre>
+        </div>
+        <div class="note">
+          <span class="ic">i</span>
+          <div>This router is stateless — good enough to start. When you need <b>memory</b> across turns or agents that hand off mid-task, you graduate to <b>LangGraph</b>, which models the whole thing as a stateful graph. We wire the three real agents together at the end.</div>
+        </div>
+
+        <h3 id="vs-crewai">LangChain vs CrewAI — which to reach for?</h3>
+        <p class="prose">Both are popular, and they solve overlapping problems from different angles. LangChain (with LangGraph) gives you composable, low-level control; CrewAI hands you an opinionated team of role-based agents. This guide leans on LangChain because QA work needs typed output and precise, testable pipelines — but here's the honest comparison.</p>
+        <div class="tbl cmp"><div class="tbl-scroll"><table>
+          <thead><tr>
+            <th>Dimension</th>
+            <th><span style="color:var(--copper-ink)">LangChain + LangGraph</span></th>
+            <th><span style="color:var(--teal-ink)">CrewAI</span></th>
+          </tr></thead>
+          <tbody>
+            <tr><td>What it is</td><td>General framework for LLM apps — chains, tools, structured output, agents. LangGraph adds stateful multi-agent graphs.</td><td>Higher-level, opinionated framework for multi-agent "crews" of role-playing agents.</td></tr>
+            <tr><td>Core idea</td><td>Composable runnables wired with the <span class="icode">|</span> pipe (LCEL), tools, and graph nodes.</td><td>Agents (role · goal · backstory) + Tasks + a Crew that runs a Process.</td></tr>
+            <tr><td>Multi-agent</td><td>Via LangGraph — an explicit graph where you control state and hand-offs.</td><td>Native and first-class — sequential or hierarchical crews out of the box.</td></tr>
+            <tr><td>Structured output</td><td>First-class: <code>with_structured_output</code> + Pydantic, used all through this guide.</td><td>Supported via Pydantic on tasks, but less central to the model.</td></tr>
+            <tr><td>Control vs speed</td><td>More control, a little more wiring.</td><td>Faster to stand up, more opinionated, less low-level control.</td></tr>
+            <tr><td>Learning curve</td><td>Moderate — lots of surface area, but each piece is simple.</td><td>Gentle start — the "team of agents" metaphor maps fast.</td></tr>
+            <tr><td>Best for a QA team</td><td>Precise, testable pipelines and the production API you just shipped.</td><td>Quickly prototyping a crew of cooperating agents (e.g. planner + coder + reviewer).</td></tr>
+            <tr><td>Pick it when</td><td>You want fine-grained control, typed output, and a deployable endpoint.</td><td>You want a role-based multi-agent crew with minimal plumbing.</td></tr>
+          </tbody>
+        </table></div></div>
+        <div class="note">
+          <span class="ic">i</span>
+          <div>It's not either/or. A common pattern: prototype a crew fast in <b>CrewAI</b> to validate the idea, then rebuild the parts you need to own — structured output, tool calls, the API — in <b>LangChain / LangGraph</b> for control and testability. They interoperate, so CrewAI agents can even call LangChain tools.</div>
+        </div>
+      </section>
+
+      <hr class="hr">
+
+      <!-- PROJECT 1: BUG TRIAGE -->
+      <section class="sec" id="p1">
+        <div class="sec-head">
+          <div class="kicker"><span class="level">PROJECT 01</span><span class="label">Typed classification</span></div>
+          <h2><span class="pr">❯</span> The <em>Bug Triage</em> agent</h2>
+        </div>
+        <p class="lead">Feed it a raw bug report; get back a structured verdict — severity, priority, likely component, owning team, and a duplicate flag — as a typed object you can drop straight into Jira. This is the single highest-leverage agent for most teams.</p>
+
+        <div class="diagram">
+          <svg viewBox="0 0 820 240" role="img" aria-label="Diagram: a raw bug report enters the triage chain, which classifies severity, priority and component and checks for duplicates, then emits a typed Triage object that flows to Jira.">
+            <text x="20" y="24" class="d-small" fill="#8a8378" font-size="12" letter-spacing="2">BUG TRIAGE FLOW</text>
+
+            <rect x="20" y="86" width="150" height="84" rx="11" fill="#f1ece1" stroke="#e3ddd0"/>
+            <text x="95" y="122" text-anchor="middle" class="d-label" fill="#6f675c" font-size="11">RAW REPORT</text>
+            <text x="95" y="142" text-anchor="middle" class="d-small" fill="#1c1a17" font-size="10.5">free text from</text>
+            <text x="95" y="156" text-anchor="middle" class="d-small" fill="#1c1a17" font-size="10.5">a user / tester</text>
+
+            <rect x="240" y="64" width="280" height="128" rx="13" fill="#ffffff" stroke="#cc6633" stroke-opacity=".55"/>
+            <text x="380" y="92" text-anchor="middle" class="d-label" fill="#b4541f" font-size="14">Triage chain</text>
+            <text x="380" y="118" text-anchor="middle" class="d-small" fill="#6f675c" font-size="11.5">· map impact → severity</text>
+            <text x="380" y="138" text-anchor="middle" class="d-small" fill="#6f675c" font-size="11.5">· map urgency → priority</text>
+            <text x="380" y="158" text-anchor="middle" class="d-small" fill="#6f675c" font-size="11.5">· guess component + team</text>
+            <text x="380" y="178" text-anchor="middle" class="d-small" fill="#6f675c" font-size="11.5">· flag likely duplicate</text>
+
+            <rect x="590" y="64" width="150" height="60" rx="11" fill="#f1ece1" stroke="#1a7c79" stroke-opacity=".55"/>
+            <text x="665" y="90" text-anchor="middle" class="d-label" fill="#15706d" font-size="12.5">Triage object</text>
+            <text x="665" y="108" text-anchor="middle" class="d-small" fill="#6f675c" font-size="10.5">typed fields</text>
+
+            <rect x="590" y="138" width="150" height="54" rx="11" fill="#f1ece1" stroke="#e3ddd0"/>
+            <text x="665" y="170" text-anchor="middle" class="d-label" fill="#1c1a17" font-size="12.5">→ Jira ticket</text>
+
+            <line x1="170" y1="128" x2="236" y2="128" stroke="#cc6633" stroke-width="2" marker-end="url(#mk-copper)"/>
+            <line x1="520" y1="100" x2="586" y2="98" stroke="#1a7c79" stroke-width="2" marker-end="url(#mk-teal)"/>
+            <line x1="665" y1="124" x2="665" y2="134" stroke="#b8b1a4" stroke-width="2" marker-end="url(#mk-dim)"/>
+          </svg>
+          <div class="cap"><b>Free text in, typed verdict out.</b> The duplicate flag and team guess are what save real triage time.</div>
+        </div>
+
+        <h3>The code</h3>
+        <p class="prose">The trick is <span class="icode">with_structured_output()</span>. You define the exact shape you want with a Pydantic model, bind it to the LLM, and the model is now forced to return that object — no free-form prose to parse.</p>
+        <div class="code">
+          <div class="code-top"><div class="dots"><i></i><i></i><i></i></div><span class="code-name">python · <b>bug_triage_agent.py</b></span><button class="copy">copy</button></div>
+          <pre><code class="language-python">from dotenv import load_dotenv
+from pydantic import BaseModel, Field
+from langchain_groq import ChatGroq
+from langchain_core.prompts import ChatPromptTemplate
+
+load_dotenv()
+
+# 1. Define the EXACT output shape. No loose text — real fields.
+class Triage(BaseModel):
+    title: str            = Field(description="One-line normalized title")
+    severity: str         = Field(description="Critical | High | Medium | Low")
+    priority: str         = Field(description="P0 | P1 | P2 | P3")
+    component: str        = Field(description="Most likely affected area")
+    suggested_team: str   = Field(description="Team that should own this")
+    likely_duplicate: bool = Field(description="True if it looks known")
+    reasoning: str        = Field(description="2-3 line justification")
+
+llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0)
+
+# 2. Bind the schema. The model now RETURNS a Triage object.
+triager = llm.with_structured_output(Triage)
+
+prompt = ChatPromptTemplate.from_messages([
+    ("system", "You triage bugs for a web product. Map user impact to "
+               "severity and business urgency to priority. Be decisive."),
+    ("human", "Bug report:\n\n{report}"),
+])
+
+chain = prompt | triager
+
+# 3. Run it on a real report.
+result = chain.invoke({"report": """
+Users on the mobile app cannot complete payment. After tapping 'Pay'
+the spinner runs forever. Started after the 4.2.0 release. About 30%
+of checkout attempts affected. No crash, no error toast.
+"""})
+
+# result is a real object — use the fields directly.
+print(f"{result.severity} / {result.priority}  ->  {result.component}")
+print(f"Owner: {result.suggested_team}  | dupe? {result.likely_duplicate}")
+print(result.reasoning)</code></pre>
+        </div>
+        <div class="prose">
+          <p>Because <span class="icode">result</span> is a typed object, the next step is trivial: <span class="icode">result.priority</span>, <span class="icode">result.component</span> — feed them into the Jira REST API and the ticket files itself with the right fields set. That's the whole point of structured output: the model's answer is <em>data</em>, not a wall of text.</p>
+        </div>
+      </section>
+
+      <hr class="hr">
+
+      <!-- PROJECT 2: RCA -->
+      <section class="sec" id="p2">
+        <div class="sec-head">
+          <div class="kicker"><span class="level t">PROJECT 02</span><span class="label">Tools + evidence</span></div>
+          <h2><span class="pr">❯</span> The <em>RCA</em> agent</h2>
+        </div>
+        <p class="lead">Triage classifies. Root-cause analysis <em>investigates</em>. This agent gathers evidence with tools — the failure log, what shipped recently, the service's health — before it commits to a cause. It's Level 2's agent loop, pointed at a real debugging task.</p>
+
+        <div class="diagram">
+          <svg viewBox="0 0 820 300" role="img" aria-label="Diagram: the RCA agent receives a failing test, then loops over three tools — fetch logs, recent commits, and service health — gathering evidence before producing a ranked root cause and a suggested fix.">
+            <text x="20" y="24" class="d-small" fill="#8a8378" font-size="12" letter-spacing="2">RCA — GATHER EVIDENCE, THEN CONCLUDE</text>
+
+            <rect x="20" y="118" width="140" height="70" rx="11" fill="#f1ece1" stroke="#e3ddd0"/>
+            <text x="90" y="148" text-anchor="middle" class="d-label" fill="#6f675c" font-size="11">FAILURE</text>
+            <text x="90" y="168" text-anchor="middle" class="d-small" fill="#1c1a17" font-size="10.5">"checkout test</text>
+            <text x="90" y="182" text-anchor="middle" class="d-small" fill="#1c1a17" font-size="10.5">just failed"</text>
+            <line x1="160" y1="153" x2="224" y2="153" stroke="#cc6633" stroke-width="2" marker-end="url(#mk-copper)"/>
+
+            <rect x="228" y="116" width="190" height="74" rx="13" fill="#ffffff" stroke="#cc6633" stroke-opacity=".55"/>
+            <text x="323" y="148" text-anchor="middle" class="d-label" fill="#b4541f" font-size="14">RCA agent</text>
+            <text x="323" y="168" text-anchor="middle" class="d-small" fill="#6f675c" font-size="11">reasons over evidence</text>
+
+            <!-- tools stack -->
+            <g>
+              <rect x="470" y="40" width="200" height="48" rx="10" fill="#f1ece1" stroke="#1a7c79" stroke-opacity=".5"/>
+              <text x="570" y="69" text-anchor="middle" class="d-small" fill="#1c1a17" font-size="11.5">fetch_test_logs()</text>
+
+              <rect x="470" y="130" width="200" height="48" rx="10" fill="#f1ece1" stroke="#1a7c79" stroke-opacity=".5"/>
+              <text x="570" y="159" text-anchor="middle" class="d-small" fill="#1c1a17" font-size="11.5">recent_commits()</text>
+
+              <rect x="470" y="220" width="200" height="48" rx="10" fill="#f1ece1" stroke="#1a7c79" stroke-opacity=".5"/>
+              <text x="570" y="249" text-anchor="middle" class="d-small" fill="#1c1a17" font-size="11.5">service_health()</text>
+            </g>
+
+            <!-- loop arrows -->
+            <path d="M418,140 C445,110 450,80 466,72" fill="none" stroke="#cc6633" stroke-width="1.7" marker-end="url(#mk-copper)"/>
+            <path d="M418,153 L466,153" fill="none" stroke="#cc6633" stroke-width="1.7" marker-end="url(#mk-copper)"/>
+            <path d="M418,166 C445,196 450,228 466,236" fill="none" stroke="#cc6633" stroke-width="1.7" marker-end="url(#mk-copper)"/>
+            <path d="M466,84 C440,120 440,130 422,140" fill="none" stroke="#1a7c79" stroke-width="1.4" marker-end="url(#mk-teal)" opacity=".8"/>
+            <text x="700" y="153" text-anchor="start" class="d-small" fill="#8a8378" font-size="10">observations ↺</text>
+
+            <!-- conclusion -->
+            <rect x="228" y="222" width="190" height="62" rx="12" fill="#ffffff" stroke="#bd8636" stroke-opacity=".5"/>
+            <text x="323" y="248" text-anchor="middle" class="d-label" fill="#a76a16" font-size="12.5">Root cause + fix</text>
+            <text x="323" y="268" text-anchor="middle" class="d-small" fill="#6f675c" font-size="10.5">ranked, with evidence</text>
+            <path d="M323,190 L323,218" fill="none" stroke="#bd8636" stroke-width="2" marker-end="url(#mk-dim)"/>
+          </svg>
+          <div class="cap"><b>It does the 2am legwork.</b> Logs show a 503, commits show a gateway swap + timeout cut, health shows the service degraded — the agent connects them.</div>
+        </div>
+
+        <h3>The code</h3>
+        <p class="prose">Same agent machinery as Level 2 — only the tools and the system prompt change. In production these tools call your real Jira, Git, log store and CI; here they return canned data so you can run it immediately.</p>
+        <div class="code">
+          <div class="code-top"><div class="dots"><i></i><i></i><i></i></div><span class="code-name">python · <b>rca_agent.py</b></span><button class="copy">copy</button></div>
+          <pre><code class="language-python">from dotenv import load_dotenv
+from langchain_groq import ChatGroq
+from langchain_core.tools import tool
+from langchain_core.prompts import ChatPromptTemplate
+from langchain.agents import create_tool_calling_agent, AgentExecutor
+
+load_dotenv()
+
+# Tools = the agent's senses. Real versions hit Jira / Git / logs / CI.
+@tool
+def fetch_test_logs(test_name: str) -> str:
+    """Return the failure log / stack trace for a failing test."""
+    return ("AssertionError: expected status 200 but got 503\n"
+            "  at checkout.spec.ts:42\n"
+            "  POST /api/v2/payment -> 503 Service Unavailable")
+
+@tool
+def recent_commits(area: str) -> str:
+    """Return recent commits that touched a given area/module."""
+    return ("- a1b2c3 'switch payment gateway to v2 endpoint' (2h ago)\n"
+            "- d4e5f6 'cut payment client timeout 3s -> 1s' (3h ago)")
+
+@tool
+def service_health(service: str) -> str:
+    """Return current health / error rate for a backend service."""
+    return "payment-svc: error rate 18%, p99 latency 9.4s (degraded)"
+
+llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0)
+tools = [fetch_test_logs, recent_commits, service_health]
+
+prompt = ChatPromptTemplate.from_messages([
+    ("system", "You are a root-cause analysis agent. Gather evidence "
+               "with tools BEFORE concluding. Then give: the single most "
+               "likely root cause, the evidence for it, and one fix."),
+    ("human", "{input}"),
+    ("placeholder", "{agent_scratchpad}"),
+])
+
+agent = create_tool_calling_agent(llm, tools, prompt)
+executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
+
+executor.invoke({"input":
+    "The test 'checkout payment flow' just started failing. "
+    "Find the root cause."
+})</code></pre>
+        </div>
+        <div class="prose">
+          <p>Watch the loop in <span class="icode">verbose</span> mode: it reads the log (a 503 on the payment endpoint), checks recent commits (a gateway swap <em>and</em> a timeout cut to 1s), checks service health (degraded, 9.4s p99) — then concludes the slashed timeout is almost certainly the trigger, and suggests reverting it. Three tools, one coherent story, zero manual digging.</p>
+        </div>
+      </section>
+
+      <hr class="hr">
+
+      <!-- PROJECT 3: TEST DESIGNER -->
+      <section class="sec" id="p3">
+        <div class="sec-head">
+          <div class="kicker"><span class="level w">PROJECT 03</span><span class="label">Generation, structured</span></div>
+          <h2><span class="pr">❯</span> The <em>Test Designer</em> agent</h2>
+        </div>
+        <p class="lead">Hand it a requirement or user story; get back a scoped test plan plus a list of concrete, runnable test cases — happy path, negative, edge, and security. Structured output again, but this time the shape is a <em>list of objects</em>, so it slots straight into TestRail or Xray.</p>
+
+        <div class="diagram">
+          <svg viewBox="0 0 820 240" role="img" aria-label="Diagram: a user story enters the test designer, which produces a scope and risk summary, then a list of typed test cases covering happy path, negative, edge and security, ready to export.">
+            <text x="20" y="24" class="d-small" fill="#8a8378" font-size="12" letter-spacing="2">TEST DESIGN FLOW</text>
+
+            <rect x="20" y="88" width="150" height="80" rx="11" fill="#f1ece1" stroke="#e3ddd0"/>
+            <text x="95" y="120" text-anchor="middle" class="d-label" fill="#6f675c" font-size="11">USER STORY</text>
+            <text x="95" y="140" text-anchor="middle" class="d-small" fill="#1c1a17" font-size="10.5">"reset password</text>
+            <text x="95" y="154" text-anchor="middle" class="d-small" fill="#1c1a17" font-size="10.5">via email link"</text>
+            <line x1="170" y1="128" x2="234" y2="128" stroke="#cc6633" stroke-width="2" marker-end="url(#mk-copper)"/>
+
+            <rect x="238" y="78" width="220" height="100" rx="13" fill="#ffffff" stroke="#cc6633" stroke-opacity=".55"/>
+            <text x="348" y="106" text-anchor="middle" class="d-label" fill="#b4541f" font-size="14">Test Designer</text>
+            <text x="348" y="130" text-anchor="middle" class="d-small" fill="#6f675c" font-size="11">1 · scope + risks</text>
+            <text x="348" y="150" text-anchor="middle" class="d-small" fill="#6f675c" font-size="11">2 · generate cases</text>
+            <text x="348" y="168" text-anchor="middle" class="d-small" fill="#8a8378" font-size="10">happy · negative · edge · security</text>
+            <line x1="458" y1="128" x2="522" y2="128" stroke="#1a7c79" stroke-width="2" marker-end="url(#mk-teal)"/>
+
+            <!-- cases -->
+            <g>
+              <rect x="526" y="66" width="270" height="30" rx="7" fill="#f1ece1" stroke="#1a7c79" stroke-opacity=".4"/>
+              <text x="540" y="86" class="d-small" fill="#1c1a17" font-size="11">TC-001 · valid reset · P0</text>
+              <rect x="526" y="102" width="270" height="30" rx="7" fill="#f1ece1" stroke="#1a7c79" stroke-opacity=".4"/>
+              <text x="540" y="122" class="d-small" fill="#1c1a17" font-size="11">TC-002 · expired link · P1</text>
+              <rect x="526" y="138" width="270" height="30" rx="7" fill="#f1ece1" stroke="#1a7c79" stroke-opacity=".4"/>
+              <text x="540" y="158" class="d-small" fill="#1c1a17" font-size="11">TC-003 · unknown email · P1</text>
+              <rect x="526" y="174" width="270" height="30" rx="7" fill="#f1ece1" stroke="#bd8636" stroke-opacity=".4"/>
+              <text x="540" y="194" class="d-small" fill="#6f675c" font-size="11">→ export to TestRail / Xray</text>
+            </g>
+          </svg>
+          <div class="cap"><b>Story in, a real test suite out.</b> Each case is a typed object with steps and expected results — not a paragraph you have to retype.</div>
+        </div>
+
+        <h3>The code</h3>
+        <p class="prose">Nesting Pydantic models is the key move: a <span class="icode">TestPlan</span> contains a <span class="icode">List[TestCase]</span>, and each <span class="icode">TestCase</span> has its own typed steps. The model fills the whole tree in one call.</p>
+        <div class="code">
+          <div class="code-top"><div class="dots"><i></i><i></i><i></i></div><span class="code-name">python · <b>test_designer_agent.py</b></span><button class="copy">copy</button></div>
+          <pre><code class="language-python">from dotenv import load_dotenv
+from typing import List
+from pydantic import BaseModel, Field
+from langchain_groq import ChatGroq
+from langchain_core.prompts import ChatPromptTemplate
+
+load_dotenv()
+
+# Nested shape: a plan holds many fully-specified test cases.
+class TestCase(BaseModel):
+    id: str            = Field(description="e.g. TC-001")
+    title: str
+    type: str          = Field(description="Functional | Negative | Edge | Security")
+    priority: str      = Field(description="P0 | P1 | P2")
+    preconditions: str
+    steps: List[str]
+    expected: str
+
+class TestPlan(BaseModel):
+    feature: str
+    scope: str         = Field(description="What is and isn't covered")
+    risks: List[str]
+    test_cases: List[TestCase]
+
+llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0)
+designer = llm.with_structured_output(TestPlan)
+
+prompt = ChatPromptTemplate.from_messages([
+    ("system", "You are a test design expert. Turn a requirement into a "
+               "crisp plan and concrete, runnable cases. Cover happy path, "
+               "negative, edge and security. No fluff."),
+    ("human", "Requirement / user story:\n\n{story}"),
+])
+
+chain = prompt | designer
+
+plan = chain.invoke({"story": """
+As a user, I can reset my password via a 'Forgot password' link.
+A reset email is sent if the account exists; the link expires in
+30 minutes; the new password must meet the strength policy.
+"""})
+
+print(f"Feature: {plan.feature}  ({len(plan.test_cases)} cases)")
+for tc in plan.test_cases:
+    print(f"  [{tc.priority}] {tc.id}  {tc.title}  ({tc.type})")</code></pre>
+        </div>
+        <div class="prose">
+          <p>Loop over <span class="icode">plan.test_cases</span> and each one already has <span class="icode">steps</span> and <span class="icode">expected</span> populated — ready to POST into your test-management tool, or to render as Gherkin, or to seed Playwright stubs. The requirement-to-coverage gap, closed in one call.</p>
+        </div>
+      </section>
+
+      <hr class="hr">
+
+      <!-- CAPSTONE -->
+      <section class="sec" id="capstone">
+        <div class="sec-head">
+          <div class="kicker"><span class="level">CAPSTONE</span><span class="label">Everything, wired</span></div>
+          <h2><span class="pr">❯</span> The <em>QA Copilot</em></h2>
+        </div>
+        <p class="lead">Three agents, one entry point. The supervisor from Level 3 now routes to the real Triage, RCA, and Test Designer agents you just built — all sharing one model, all feeding your existing tools. This is the whole system on one page.</p>
+
+        <div class="diagram">
+          <svg viewBox="0 0 820 360" role="img" aria-label="Diagram: full QA Copilot architecture. A request hits the supervisor, which routes to Bug Triage, RCA, or Test Designer. All three share one Groq model; RCA also uses Jira, Git, logs and CI tools. Outputs flow to Jira and TestRail.">
+            <text x="20" y="24" class="d-small" fill="#8a8378" font-size="12" letter-spacing="2">QA COPILOT — FULL ARCHITECTURE</text>
+
+            <!-- request -->
+            <rect x="335" y="42" width="150" height="44" rx="10" fill="#f1ece1" stroke="#e3ddd0"/>
+            <text x="410" y="69" text-anchor="middle" class="d-small" fill="#1c1a17" font-size="12">request</text>
+
+            <!-- supervisor -->
+            <rect x="305" y="106" width="210" height="50" rx="11" fill="#ffffff" stroke="#cc6633" stroke-opacity=".6"/>
+            <text x="410" y="130" text-anchor="middle" class="d-label" fill="#b4541f" font-size="13.5">Supervisor (router)</text>
+            <text x="410" y="147" text-anchor="middle" class="d-small" fill="#6f675c" font-size="10">classify → dispatch</text>
+            <line x1="410" y1="86" x2="410" y2="104" stroke="#cc6633" stroke-width="2" marker-end="url(#mk-copper)"/>
+
+            <!-- three agents -->
+            <rect x="40" y="196" width="210" height="56" rx="11" fill="#f1ece1" stroke="#cc6633" stroke-opacity=".45"/>
+            <text x="145" y="220" text-anchor="middle" class="d-label" fill="#1c1a17" font-size="12.5">Bug Triage</text>
+            <text x="145" y="238" text-anchor="middle" class="d-small" fill="#6f675c" font-size="10">structured output</text>
+
+            <rect x="305" y="196" width="210" height="56" rx="11" fill="#f1ece1" stroke="#1a7c79" stroke-opacity=".45"/>
+            <text x="410" y="220" text-anchor="middle" class="d-label" fill="#1c1a17" font-size="12.5">RCA Agent</text>
+            <text x="410" y="238" text-anchor="middle" class="d-small" fill="#6f675c" font-size="10">tool-using loop</text>
+
+            <rect x="570" y="196" width="210" height="56" rx="11" fill="#f1ece1" stroke="#bd8636" stroke-opacity=".45"/>
+            <text x="675" y="220" text-anchor="middle" class="d-label" fill="#1c1a17" font-size="12.5">Test Designer</text>
+            <text x="675" y="238" text-anchor="middle" class="d-small" fill="#6f675c" font-size="10">nested output</text>
+
+            <path d="M360,156 L160,194" fill="none" stroke="#cc6633" stroke-width="1.7" marker-end="url(#mk-copper)"/>
+            <path d="M410,156 L410,194" fill="none" stroke="#1a7c79" stroke-width="1.7" marker-end="url(#mk-teal)"/>
+            <path d="M460,156 L660,194" fill="none" stroke="#bd8636" stroke-width="1.7" marker-end="url(#mk-dim)"/>
+
+            <!-- shared model -->
+            <rect x="250" y="290" width="320" height="48" rx="11" fill="#ffffff" stroke="#e3ddd0"/>
+            <text x="410" y="314" text-anchor="middle" class="d-label" fill="#6f675c" font-size="12">shared model · ChatGroq (Llama 3.3)</text>
+            <text x="410" y="330" text-anchor="middle" class="d-small" fill="#8a8378" font-size="10">one line to swap for OpenAI / Anthropic</text>
+            <path d="M145,252 L300,300" fill="none" stroke="#d8d1c3" stroke-width="1.3"/>
+            <path d="M410,252 L410,288" fill="none" stroke="#d8d1c3" stroke-width="1.3"/>
+            <path d="M675,252 L520,300" fill="none" stroke="#d8d1c3" stroke-width="1.3"/>
+
+            <!-- tools for RCA -->
+            <rect x="600" y="290" width="200" height="48" rx="11" fill="#f1ece1" stroke="#1a7c79" stroke-opacity=".4"/>
+            <text x="700" y="312" text-anchor="middle" class="d-small" fill="#1c1a17" font-size="11">Tools: Jira · Git · logs · CI</text>
+            <text x="700" y="328" text-anchor="middle" class="d-small" fill="#8a8378" font-size="10">used by the RCA agent</text>
+            <path d="M470,224 L598,300" fill="none" stroke="#1a7c79" stroke-width="1.2" opacity=".6"/>
+
+            <!-- outputs -->
+            <rect x="40" y="290" width="190" height="48" rx="11" fill="#f1ece1" stroke="#e3ddd0"/>
+            <text x="135" y="312" text-anchor="middle" class="d-small" fill="#1c1a17" font-size="11">→ Jira / TestRail</text>
+            <text x="135" y="328" text-anchor="middle" class="d-small" fill="#8a8378" font-size="10">where results land</text>
+            <path d="M145,252 L135,288" fill="none" stroke="#d8d1c3" stroke-width="1.2"/>
+          </svg>
+          <div class="cap"><b>The full picture.</b> Specialist agents, a shared brain, your real tools, and outputs that land in the systems you already use.</div>
+        </div>
+
+        <h3>Assembling it</h3>
+        <p class="prose">No new concepts — just imports. Each agent is a chain or executor you already wrote; the copilot stitches them behind the router.</p>
+        <div class="code">
+          <div class="code-top"><div class="dots"><i></i><i></i><i></i></div><span class="code-name">python · <b>qa_copilot.py</b></span><button class="copy">copy</button></div>
+          <pre><code class="language-python">from dotenv import load_dotenv
+from langchain_groq import ChatGroq
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.output_parsers import StrOutputParser
+
+# the pieces you built in the projects above
+from bug_triage_agent import chain as triage_chain
+from test_designer_agent import chain as design_chain
+from rca_agent import executor as rca_executor
+
+load_dotenv()
+llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0)
+
+route = ChatPromptTemplate.from_messages([
+    ("system", "Classify into exactly one label: TRIAGE, RCA, or DESIGN. "
+               "Reply with the label only."),
+    ("human", "{input}"),
+])
+router = route | llm | StrOutputParser()
+
+def qa_copilot(request: str):
+    label = router.invoke({"input": request}).strip().upper()
+    if "TRIAGE" in label: return triage_chain.invoke({"report": request})
+    if "DESIGN" in label: return design_chain.invoke({"story": request})
+    if "RCA"    in label: return rca_executor.invoke({"input": request})
+    return "Could not route the request."
+
+# One front door for the whole QA team:
+print(qa_copilot("Bug: app freezes when uploading a 0-byte file on iOS."))
+print(qa_copilot("Write test cases for the password reset flow."))
+print(qa_copilot("The login smoke test just started failing — why?"))</code></pre>
+        </div>
+        <div class="note">
+          <span class="ic">i</span>
+          <div>You now have the complete loop: a request comes in, the router picks the right specialist, the specialist does its job with a shared model and your tools, and the result is typed data ready for Jira or TestRail. That's a working QA Copilot — built from blocks you understand.</div>
+        </div>
+      </section>
+
+      <hr class="hr">
+
+      <!-- DEPLOY -->
+      <section class="sec" id="deploy">
+        <div class="sec-head">
+          <div class="kicker"><span class="level w">DEPLOY</span><span class="label">Ship to prod</span></div>
+          <h2><span class="pr">❯</span> Ship it — <em>deploy</em> &amp; serve 24×7</h2>
+        </div>
+        <p class="lead">Everything so far runs on your laptop. Now we put one API in front of all the agents, push it to an Ubuntu 24.04 LTS VPS, and keep it alive around the clock — so any teammate, CI job, or script can hit it with a single <span class="icode">curl</span>.</p>
+
+        <h3>What we're building</h3>
+        <p class="prose">A small FastAPI app wraps each agent as an HTTP endpoint. A request comes in over HTTPS, nginx hands it to uvicorn, uvicorn runs the agent, and the JSON answer travels back. <strong>systemd</strong> keeps the whole thing running — restarting on crash and on reboot.</p>
+
+        <div class="diagram">
+          <svg viewBox="0 0 820 240" role="img" aria-label="Diagram: request lifecycle. A curl client sends an HTTPS request to nginx, which proxies to uvicorn running FastAPI on port 8000. FastAPI runs the QA agent, which calls the Groq model and tools, and a JSON reply returns to the client.">
+            <text x="20" y="24" class="d-small" fill="#8a8378" font-size="12" letter-spacing="2">REQUEST LIFECYCLE · CLIENT → API → AGENT → REPLY</text>
+
+            <rect x="14" y="78" width="118" height="72" rx="11" fill="#ffffff" stroke="#e3ddd0"/>
+            <rect x="14" y="78" width="118" height="72" rx="11" fill="none" stroke="#cc6633" stroke-opacity=".45"/>
+            <text x="73" y="108" text-anchor="middle" class="d-label" fill="#1c1a17" font-size="13">curl / app</text>
+            <text x="73" y="126" text-anchor="middle" class="d-small" fill="#8a8378" font-size="10.5">your client</text>
+
+            <rect x="172" y="78" width="118" height="72" rx="11" fill="#ffffff" stroke="#1a7c79" stroke-opacity=".55"/>
+            <text x="231" y="104" text-anchor="middle" class="d-label" fill="#1c1a17" font-size="13">nginx</text>
+            <text x="231" y="122" text-anchor="middle" class="d-small" fill="#6f675c" font-size="10.5">TLS · :443</text>
+            <text x="231" y="137" text-anchor="middle" class="d-small" fill="#8a8378" font-size="9.5">reverse proxy</text>
+
+            <rect x="330" y="68" width="170" height="92" rx="12" fill="#ffffff" stroke="#cc6633" stroke-opacity=".55"/>
+            <text x="415" y="93" text-anchor="middle" class="d-label" fill="#b4541f" font-size="14">uvicorn · FastAPI</text>
+            <text x="415" y="111" text-anchor="middle" class="d-small" fill="#6f675c" font-size="10.5">127.0.0.1:8000</text>
+            <text x="415" y="133" text-anchor="middle" class="d-small" fill="#8a8378" font-size="10">/health /triage /rca</text>
+            <text x="415" y="147" text-anchor="middle" class="d-small" fill="#8a8378" font-size="10">/design /ask</text>
+
+            <rect x="538" y="78" width="104" height="72" rx="11" fill="#f1ece1" stroke="#e3ddd0"/>
+            <text x="590" y="108" text-anchor="middle" class="d-label" fill="#1c1a17" font-size="12.5">QA agent</text>
+            <text x="590" y="126" text-anchor="middle" class="d-small" fill="#8a8378" font-size="10">chain / loop</text>
+
+            <rect x="680" y="78" width="126" height="72" rx="11" fill="#ffffff" stroke="#1a7c79" stroke-opacity=".55"/>
+            <text x="743" y="104" text-anchor="middle" class="d-label" fill="#1c1a17" font-size="13">Groq model</text>
+            <text x="743" y="122" text-anchor="middle" class="d-small" fill="#6f675c" font-size="10.5">+ tools</text>
+
+            <line x1="132" y1="114" x2="170" y2="114" stroke="#cc6633" stroke-width="2" marker-end="url(#mk-copper)"/>
+            <line x1="290" y1="114" x2="328" y2="114" stroke="#cc6633" stroke-width="2" marker-end="url(#mk-copper)"/>
+            <line x1="500" y1="114" x2="536" y2="114" stroke="#cc6633" stroke-width="2" marker-end="url(#mk-copper)"/>
+            <line x1="642" y1="114" x2="678" y2="114" stroke="#cc6633" stroke-width="2" marker-end="url(#mk-copper)"/>
+            <text x="151" y="100" text-anchor="middle" class="d-small" fill="#b4541f" font-size="9.5">HTTPS</text>
+            <text x="309" y="100" text-anchor="middle" class="d-small" fill="#b4541f" font-size="9.5">proxy</text>
+
+            <path d="M743,150 C743,206 73,206 73,152" fill="none" stroke="#1a7c79" stroke-width="2" marker-end="url(#mk-teal)"/>
+            <text x="410" y="200" text-anchor="middle" class="d-small" fill="#15706d" font-size="11">JSON reply  ◀</text>
+          </svg>
+          <div class="cap"><b>One request in, one JSON answer out.</b> Every agent reachable over the wire — nginx is the only public door.</div>
+        </div>
+
+        <h3>Step 1 · Wrap every agent in one API</h3>
+        <p class="prose">This is the only new Python. It imports the chains and executors you already built and exposes them as routes — JSON in, JSON out. A simple API-key header keeps the world from spending your Groq credits.</p>
+        <div class="code">
+          <div class="code-top"><div class="dots"><i></i><i></i><i></i></div><span class="code-name">python · <b>main.py</b></span><button class="copy">copy</button></div>
+          <pre><code class="language-python"># main.py — one HTTP API in front of every QA agent
+import os
+from fastapi import FastAPI, Header, HTTPException
+from pydantic import BaseModel
+from dotenv import load_dotenv
+
+# the agents you built earlier
+from bug_triage_agent import chain as triage_chain
+from rca_agent import executor as rca_executor
+from test_designer_agent import chain as design_chain
+from qa_copilot import qa_copilot
+
+load_dotenv()
+API_KEY = os.environ.get("QA_API_KEY", "")   # set on the server, in .env
+
+app = FastAPI(title="QA Agents API", version="1.0.0")
+
+def require_key(x_api_key: str | None):
+    """Reject calls without the right header (only if a key is configured)."""
+    if API_KEY and x_api_key != API_KEY:
+        raise HTTPException(status_code=401, detail="Invalid or missing API key")
+
+# ---- request bodies ----
+class BugIn(BaseModel):   report: str
+class RcaIn(BaseModel):   input: str
+class StoryIn(BaseModel): story: str
+class AskIn(BaseModel):   request: str
+
+# ---- endpoints ----
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
+@app.post("/triage")
+def triage(body: BugIn, x_api_key: str | None = Header(default=None)):
+    require_key(x_api_key)
+    result = triage_chain.invoke({"report": body.report})
+    return result.model_dump()              # typed object -> JSON
+
+@app.post("/rca")
+def rca(body: RcaIn, x_api_key: str | None = Header(default=None)):
+    require_key(x_api_key)
+    out = rca_executor.invoke({"input": body.input})
+    return {"answer": out["output"]}        # AgentExecutor -> final text
+
+@app.post("/design")
+def design(body: StoryIn, x_api_key: str | None = Header(default=None)):
+    require_key(x_api_key)
+    plan = design_chain.invoke({"story": body.story})
+    return plan.model_dump()
+
+@app.post("/ask")
+def ask(body: AskIn, x_api_key: str | None = Header(default=None)):
+    require_key(x_api_key)
+    answer = qa_copilot(body.request)       # router picks the agent
+    if hasattr(answer, "model_dump"):       # normalise to JSON
+        return answer.model_dump()
+    if isinstance(answer, dict):
+        return {"answer": answer.get("output", answer)}
+    return {"answer": answer}</code></pre>
+        </div>
+
+        <div class="note warn">
+          <span class="ic">!</span>
+          <div>The project files from earlier end with demo <span class="icode">.invoke(...)</span> / <span class="icode">print(...)</span> lines. Guard them so importing the file here doesn't fire a live agent on startup:</div>
+        </div>
+        <div class="code">
+          <div class="code-top"><div class="dots"><i></i><i></i><i></i></div><span class="code-name">python · <b>bottom of each agent file</b></span><button class="copy">copy</button></div>
+          <pre><code class="language-python"># wrap the demo run so it ONLY fires when you run this file directly,
+# not when main.py imports it.
+if __name__ == "__main__":
+    print(chain.invoke({"report": "..."}))</code></pre>
+        </div>
+
+        <h3>Step 2 · Pin the dependencies</h3>
+        <div class="code">
+          <div class="code-top"><div class="dots"><i></i><i></i><i></i></div><span class="code-name">file · <b>requirements.txt</b></span><button class="copy">copy</button></div>
+          <pre><code class="nohighlight">langchain
+langchain-core
+langchain-community
+langchain-groq
+langgraph
+pydantic
+python-dotenv
+fastapi
+uvicorn[standard]</code></pre>
+        </div>
+
+        <h3>Step 3 · Run it locally first</h3>
+        <p class="prose">Always prove it boots on your machine before touching the server.</p>
+        <div class="code">
+          <div class="code-top"><div class="dots"><i></i><i></i><i></i></div><span class="code-name">terminal · <b>local test</b></span><button class="copy">copy</button></div>
+          <pre><code class="language-bash"># boot the API on your laptop (auto-reload while you edit)
+uvicorn main:app --reload --port 8000
+
+# in a second terminal — is it alive?
+curl http://127.0.0.1:8000/health
+# {"status":"ok"}
+
+# fire a real triage
+curl -X POST http://127.0.0.1:8000/triage \
+  -H "Content-Type: application/json" \
+  -d '{"report":"Pay button spins forever on iOS after 4.2.0; ~30% of checkouts."}'</code></pre>
+        </div>
+        <div class="note">
+          <span class="ic">i</span>
+          <div>Open <span class="icode">http://127.0.0.1:8000/docs</span> in a browser — FastAPI gives you a free, clickable Swagger UI for every endpoint. If the curls return JSON, you're ready to deploy.</div>
+        </div>
+
+        <h3>Step 4 · Provision the VPS (Ubuntu 24.04 LTS)</h3>
+        <p class="prose">A small box is plenty — 1 vCPU / 1 GB RAM works fine, since the heavy lifting happens on Groq's side. SSH in, get the code onto the box, and install into a virtualenv. Ubuntu 24.04 already ships Python 3.12.</p>
+        <div class="code">
+          <div class="code-top"><div class="dots"><i></i><i></i><i></i></div><span class="code-name">terminal · <b>on the VPS</b></span><button class="copy">copy</button></div>
+          <pre><code class="language-bash"># --- on your laptop: copy the project up (or git clone on the server) ---
+scp -r ./qa-agents ubuntu@SERVER_IP:/home/ubuntu/
+
+# --- ssh into the box ---
+ssh ubuntu@SERVER_IP
+
+# --- system packages (Ubuntu 24.04 already ships Python 3.12) ---
+sudo apt update &amp;&amp; sudo apt upgrade -y
+sudo apt install -y python3-venv python3-pip nginx
+
+# --- virtualenv + dependencies ---
+cd ~/qa-agents
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+
+# --- secrets: create .env on the server (never commit it) ---
+nano .env
+#   GROQ_API_KEY=gsk_xxx
+#   QA_API_KEY=choose-a-long-random-string
+chmod 600 .env
+
+# --- smoke test it boots, then press Ctrl-C ---
+uvicorn main:app --host 127.0.0.1 --port 8000</code></pre>
+        </div>
+
+        <h3>Step 5 · Keep it alive 24×7 with systemd</h3>
+        <p class="prose">A bare <span class="icode">uvicorn</span> command dies the moment you close SSH. systemd turns it into a managed service that starts on boot and respawns if it ever crashes — that's what makes it 24×7.</p>
+        <div class="code">
+          <div class="code-top"><div class="dots"><i></i><i></i><i></i></div><span class="code-name">file · <b>/etc/systemd/system/qa-agents.service</b></span><button class="copy">copy</button></div>
+          <pre><code class="nohighlight">[Unit]
+Description=QA Agents API (FastAPI + uvicorn)
+After=network.target
+
+[Service]
+User=ubuntu
+WorkingDirectory=/home/ubuntu/qa-agents
+ExecStart=/home/ubuntu/qa-agents/.venv/bin/uvicorn main:app --host 127.0.0.1 --port 8000 --workers 2
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target</code></pre>
+        </div>
+        <div class="code">
+          <div class="code-top"><div class="dots"><i></i><i></i><i></i></div><span class="code-name">terminal · <b>start the service</b></span><button class="copy">copy</button></div>
+          <pre><code class="language-bash"># load the unit, enable on boot AND start it now
+sudo systemctl daemon-reload
+sudo systemctl enable --now qa-agents
+
+# is it healthy?
+sudo systemctl status qa-agents
+
+# live logs (Ctrl-C to stop watching)
+journalctl -u qa-agents -f</code></pre>
+        </div>
+
+        <div class="diagram">
+          <svg viewBox="0 0 820 210" role="img" aria-label="Diagram: systemd supervision. The API process runs under systemd. If it crashes or the VPS reboots, systemd respawns it within seconds, keeping the service available around the clock.">
+            <text x="20" y="24" class="d-small" fill="#8a8378" font-size="12" letter-spacing="2">STAYS UP 24×7 · SUPERVISED BY systemd</text>
+
+            <rect x="96" y="64" width="184" height="66" rx="12" fill="#ffffff" stroke="#1a7c79" stroke-opacity=".55"/>
+            <text x="188" y="92" text-anchor="middle" class="d-label" fill="#1c1a17" font-size="14">API running</text>
+            <text x="188" y="111" text-anchor="middle" class="d-small" fill="#6f675c" font-size="11">uvicorn workers</text>
+
+            <rect x="440" y="64" width="184" height="66" rx="12" fill="#ffffff" stroke="#bd8636" stroke-opacity=".65"/>
+            <text x="532" y="92" text-anchor="middle" class="d-label" fill="#a76a16" font-size="14">systemd unit</text>
+            <text x="532" y="111" text-anchor="middle" class="d-small" fill="#6f675c" font-size="10.5">Restart=always · enabled</text>
+
+            <line x1="282" y1="88" x2="436" y2="88" stroke="#bd8636" stroke-width="2" marker-end="url(#mk-amber)"/>
+            <text x="359" y="78" text-anchor="middle" class="d-small" fill="#a76a16" font-size="10.5">crash · or VPS reboot</text>
+            <line x1="436" y1="110" x2="282" y2="110" stroke="#cc6633" stroke-width="2" marker-end="url(#mk-copper)"/>
+            <text x="359" y="126" text-anchor="middle" class="d-small" fill="#b4541f" font-size="10.5">respawns in ≈3s</text>
+
+            <text x="96" y="166" class="d-small" fill="#1c1a17" font-size="11">enable on boot   →   survives reboot</text>
+            <text x="96" y="183" class="d-small" fill="#1c1a17" font-size="11">Restart=always   →   survives crash</text>
+            <text x="96" y="200" class="d-small" fill="#6f675c" font-size="11">journalctl -u qa-agents -f   →   live logs</text>
+          </svg>
+          <div class="cap"><b>systemd is the supervisor.</b> If the process dies or the box reboots, the API comes straight back — no human needed.</div>
+        </div>
+
+        <div class="note">
+          <span class="ic">i</span>
+          <div><span class="icode">enable --now</span> does both jobs at once: starts it now and wires it to launch on every boot. <span class="icode">Restart=always</span> handles crashes. That combination is your 24×7.</div>
+        </div>
+
+        <h3>Step 6 · Put nginx in front + lock the firewall</h3>
+        <p class="prose">uvicorn is bound to <span class="icode">127.0.0.1</span>, so it isn't reachable from the internet directly. nginx is the only public door — it forwards traffic to uvicorn and is where TLS lives.</p>
+        <div class="code">
+          <div class="code-top"><div class="dots"><i></i><i></i><i></i></div><span class="code-name">file · <b>/etc/nginx/sites-available/qa-agents</b></span><button class="copy">copy</button></div>
+          <pre><code class="nohighlight">server {
+    listen 80;
+    server_name api.yourdomain.com;     # or your server's IP
+
+    location / {
+        proxy_pass         http://127.0.0.1:8000;
+        proxy_set_header   Host $host;
+        proxy_set_header   X-Real-IP $remote_addr;
+        proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto $scheme;
+    }
+}</code></pre>
+        </div>
+        <div class="code">
+          <div class="code-top"><div class="dots"><i></i><i></i><i></i></div><span class="code-name">terminal · <b>enable site + firewall</b></span><button class="copy">copy</button></div>
+          <pre><code class="language-bash"># enable the site
+sudo ln -s /etc/nginx/sites-available/qa-agents /etc/nginx/sites-enabled/
+sudo nginx -t &amp;&amp; sudo systemctl reload nginx
+
+# firewall: allow SSH + web only — port 8000 stays private
+sudo ufw allow OpenSSH
+sudo ufw allow 'Nginx Full'
+sudo ufw enable</code></pre>
+        </div>
+        <p class="prose">The firewall opens only SSH and the web ports; port 8000 stays private. Add a real, auto-renewing certificate in one command:</p>
+        <div class="code">
+          <div class="code-top"><div class="dots"><i></i><i></i><i></i></div><span class="code-name">terminal · <b>HTTPS with certbot</b></span><button class="copy">copy</button></div>
+          <pre><code class="language-bash">sudo apt install -y certbot python3-certbot-nginx
+sudo certbot --nginx -d api.yourdomain.com</code></pre>
+        </div>
+
+        <h3 id="endpoints">Step 7 · Call it from anywhere — every endpoint</h3>
+        <p class="prose">With the service live behind your domain (or IP), here's the full surface. Swap <span class="icode">api.yourdomain.com</span> and the key for yours.</p>
+        <div class="code">
+          <div class="code-top"><div class="dots"><i></i><i></i><i></i></div><span class="code-name">terminal · <b>all endpoints</b></span><button class="copy">copy</button></div>
+          <pre><code class="language-bash"># set these once for convenience
+BASE="https://api.yourdomain.com"
+KEY="your-qa-api-key"
+
+# 1. liveness check (no key needed)
+curl $BASE/health
+
+# 2. bug triage  ->  typed verdict
+curl -X POST $BASE/triage -H "Content-Type: application/json" -H "X-API-Key: $KEY" \
+  -d '{"report":"Users cannot pay on iOS after 4.2.0; spinner never stops; ~30% of checkouts."}'
+
+# 3. root-cause analysis  ->  cause + evidence + fix
+curl -X POST $BASE/rca -H "Content-Type: application/json" -H "X-API-Key: $KEY" \
+  -d '{"input":"The checkout payment flow test just started failing. Find the root cause."}'
+
+# 4. test design  ->  plan + cases
+curl -X POST $BASE/design -H "Content-Type: application/json" -H "X-API-Key: $KEY" \
+  -d '{"story":"As a user I can reset my password via an emailed link that expires in 30 min."}'
+
+# 5. ask  ->  the router picks the right agent
+curl -X POST $BASE/ask -H "Content-Type: application/json" -H "X-API-Key: $KEY" \
+  -d '{"request":"Write test cases for the password reset flow."}'</code></pre>
+        </div>
+        <p class="prose">A call to <span class="icode">/rca</span> comes back like this — the agent did the log, commit and health legwork on the server and handed you the verdict:</p>
+        <div class="code">
+          <div class="code-top"><div class="dots"><i></i><i></i><i></i></div><span class="code-name">response · <b>POST /rca</b></span><button class="copy">copy</button></div>
+          <pre><code class="nohighlight">{
+  "answer": "Most likely root cause: the payment client timeout was cut
+  from 3s to 1s (commit d4e5f6), so calls to the degraded payment-svc
+  (p99 9.4s) now abort with 503 before completing. Evidence: expected 200
+  got 503 on POST /api/v2/payment; payment-svc error rate 18%. Suggested
+  fix: revert the timeout to 3s and add one retry, then re-run the spec."
+}</code></pre>
+        </div>
+
+        <h3>The endpoint map</h3>
+        <div class="tbl"><div class="tbl-scroll"><table>
+          <thead><tr><th>Method</th><th>Path</th><th>Body (JSON)</th><th>Returns</th></tr></thead>
+          <tbody>
+            <tr><td><span class="m">GET</span></td><td><code>/health</code></td><td>—</td><td>Liveness check, <code>{"status":"ok"}</code>. Point your uptime monitor here.</td></tr>
+            <tr><td><span class="m post">POST</span></td><td><code>/triage</code></td><td><code>{report}</code></td><td>Typed triage: severity, priority, component, owning team, duplicate flag, reasoning.</td></tr>
+            <tr><td><span class="m post">POST</span></td><td><code>/rca</code></td><td><code>{input}</code></td><td><code>{answer}</code> — the root cause, the evidence behind it, and a suggested fix.</td></tr>
+            <tr><td><span class="m post">POST</span></td><td><code>/design</code></td><td><code>{story}</code></td><td>A scoped test plan plus a list of typed, runnable test cases.</td></tr>
+            <tr><td><span class="m post">POST</span></td><td><code>/ask</code></td><td><code>{request}</code></td><td>Router reads intent and dispatches to triage / rca / design, then returns that result.</td></tr>
+          </tbody>
+        </table></div></div>
+
+        <h3>Before you expose it widely</h3>
+        <div class="prose">
+          <ul>
+            <li><strong>Keep the API key on.</strong> It's the line between a private tool and a public bill — anyone who finds the URL can otherwise spend your Groq credits.</li>
+            <li><strong>Only nginx is public.</strong> uvicorn stays bound to <span class="icode">127.0.0.1:8000</span> and the firewall blocks that port. Never expose uvicorn directly.</li>
+            <li><strong>Secrets live in <span class="icode">.env</span></strong>, <span class="icode">chmod 600</span>, never in git. Rotate the key the moment it leaks.</li>
+            <li><strong>Add rate limiting</strong> if it's internet-facing — a small library like <span class="icode">slowapi</span> caps requests per IP so one caller can't drain your budget.</li>
+            <li><strong>Scale by workers, not rewrites.</strong> Agent calls are I/O-bound (waiting on Groq), so raise <span class="icode">--workers</span>, or move to <span class="icode">gunicorn -k uvicorn.workers.UvicornWorker</span> when traffic grows.</li>
+          </ul>
+        </div>
+        <div class="note">
+          <span class="ic">✓</span>
+          <div><b>That's the full loop, in production.</b> One API, every agent, reachable over HTTPS and supervised by systemd — it answers <span class="icode">curl</span> at 3am whether or not your laptop is open.</div>
+        </div>
+      </section>
+
+      <hr class="hr">
+
+      <!-- NEXT -->
+      <section class="sec" id="next">
+        <div class="sec-head">
+          <div class="kicker"><span class="label">Ship it further</span></div>
+          <h2><span class="pr">❯</span> Where to go <em>next</em></h2>
+        </div>
+        <p class="lead">You've got the foundations and three real agents. Four directions turn this from a demo into something your team leans on daily.</p>
+        <div class="points">
+          <div class="point">
+            <div class="num">→</div>
+            <div>
+              <h4>Make it stateful with LangGraph</h4>
+              <p>The router here is stateless. LangGraph models the system as a graph with memory and hand-offs, so an agent can pause, ask a follow-up, or pass work to another agent mid-task. The natural next step once one-shot routing isn't enough.</p>
+            </div>
+          </div>
+          <div class="point">
+            <div class="num">→</div>
+            <div>
+              <h4>Give agents your knowledge (RAG)</h4>
+              <p>Index your test docs, runbooks and past bug history in a vector store like ChromaDB, and let agents retrieve from it. Now triage knows your real components and RCA knows your past incidents — answers stop being generic.</p>
+            </div>
+          </div>
+          <div class="point">
+            <div class="num">→</div>
+            <div>
+              <h4>Wire the real tools</h4>
+              <p>Swap the canned tool returns for live calls to the Jira REST API, your Git host, log store and CI. The agent code doesn't change — only what the tools return. That's the payoff of the tool abstraction.</p>
+            </div>
+          </div>
+          <div class="point">
+            <div class="num">→</div>
+            <div>
+              <h4>Evaluate before you trust it</h4>
+              <p>An agent that's right 70% of the time is dangerous if you can't tell which 70%. Build an eval set with tools like DeepEval or PromptFoo and score triage accuracy and RCA correctness on known cases before you put it in front of the team.</p>
+            </div>
+          </div>
+        </div>
+        <div class="note">
+          <span class="ic">✓</span>
+          <div><b>Recap.</b> You learned the five blocks, made a call, built a chain, built an agent, routed many agents, and shipped Triage + RCA + Test Designer behind one copilot. Everything ran on free infrastructure and ports to any model with one line.</div>
+        </div>
+      </section>
+
+      <footer>
+        <b>The Testing Academy</b> — LangChain for QA Engineers · Built as a hands-on, copy-as-you-go field guide.<br>
+        Every snippet runs on the free Groq tier. Swap the model line to move providers.
+      </footer>
+    </div>
+  </main>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/python.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/bash.min.js"></script>
+<script>
+(function(){
+  // highlight
+  function hl(){ if(window.hljs){ document.querySelectorAll('pre code').forEach(function(b){ if(b.classList.contains('nohighlight')) return; try{hljs.highlightElement(b);}catch(e){} }); } }
+  if(document.readyState!=='loading') hl(); else document.addEventListener('DOMContentLoaded',hl);
+
+  // copy buttons
+  document.addEventListener('click',function(e){
+    var btn=e.target.closest('.copy'); if(!btn) return;
+    var code=btn.closest('.code').querySelector('code');
+    var txt=code.innerText;
+    navigator.clipboard.writeText(txt).then(function(){
+      var old=btn.textContent; btn.textContent='✓ copied'; btn.classList.add('ok');
+      setTimeout(function(){btn.textContent=old; btn.classList.remove('ok');},1400);
+    });
+  });
+
+  // scroll progress
+  var bar=document.getElementById('bar');
+  function prog(){
+    var h=document.documentElement;
+    var sc=h.scrollTop||document.body.scrollTop;
+    var max=(h.scrollHeight-h.clientHeight)||1;
+    bar.style.width=(sc/max*100)+'%';
+  }
+  document.addEventListener('scroll',prog,{passive:true}); prog();
+
+  // mobile nav
+  var side=document.getElementById('side'), scrim=document.getElementById('scrim'), mb=document.getElementById('menuBtn');
+  function toggle(open){ side.classList.toggle('open',open); scrim.classList.toggle('show',open); }
+  if(mb) mb.addEventListener('click',function(){toggle(!side.classList.contains('open'));});
+  if(scrim) scrim.addEventListener('click',function(){toggle(false);});
+  document.querySelectorAll('.nav a').forEach(function(a){a.addEventListener('click',function(){toggle(false);});});
+
+  // active section
+  var links=Array.prototype.slice.call(document.querySelectorAll('.nav a'));
+  var map={}; links.forEach(function(a){ var id=a.getAttribute('href').slice(1); map[id]=a; });
+  var obs=new IntersectionObserver(function(entries){
+    entries.forEach(function(en){
+      if(en.isIntersecting){
+        links.forEach(function(l){l.classList.remove('active');});
+        var a=map[en.target.id]; if(a) a.classList.add('active');
+      }
+    });
+  },{rootMargin:'-20% 0px -70% 0px',threshold:0});
+  document.querySelectorAll('section[id],header[id]').forEach(function(s){obs.observe(s);});
+})();
+</script>
+</body>
+</html>
